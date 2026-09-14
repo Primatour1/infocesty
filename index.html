@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#151515">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Infocesty">
+<title>Infocesty – terénny zápisník</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --y:#fab70f; --y2:#b07f00; --k:#151515; --g:#696f6f; --bg:#f4f4f2; --card:#fff; --line:#e6e6e2; --line2:#dcdcd8; --ok:#2e8b57; --warn:#d11f2f; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background:var(--k); }
+  body { font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif; color:var(--k); font-size:15px; }
+  #app { display:flex; flex-direction:column; height:100dvh; max-width:520px; margin:0 auto; background:var(--bg); }
+  button, input, textarea { font-family: inherit; font-size: inherit; }
+  button { cursor:pointer; }
+  input:focus, textarea:focus { outline:2px solid var(--y); outline-offset:0; }
+  .hdr { background:var(--k); color:#fff; padding: calc(env(safe-area-inset-top) + 14px) 18px 14px; display:flex; flex-direction:column; gap:12px; flex-shrink:0; }
+  .brand { display:flex; justify-content:space-between; align-items:center; }
+  .logo { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:.12em; font-size:14px; }
+  .logo .sq { width:26px; height:26px; background:var(--y); border-radius:6px; display:flex; align-items:center; justify-content:center; }
+  .brand .trip { font-size:12px; font-weight:600; color:#b8b8b4; max-width:55%; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .active-btn { display:flex; justify-content:space-between; align-items:center; gap:12px; background:#262626; border:1px solid #3a3a3a; border-radius:14px; padding:12px 14px; color:#fff; text-align:left; width:100%; }
+  .active-btn .lbl { font-size:11px; font-weight:600; color:var(--y); letter-spacing:.08em; }
+  .active-btn .name { font-size:18px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .active-btn .sub { font-size:12px; color:#b8b8b4; }
+  .active-btn .sw { display:flex; align-items:center; gap:6px; background:var(--y); color:var(--k); border-radius:10px; padding:8px 10px; font-size:12px; font-weight:700; flex-shrink:0; }
+  .title { font-size:22px; font-weight:800; padding:2px 0; }
+  .body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .screen { display:flex; flex-direction:column; gap:12px; padding:16px 16px 28px; }
+  .row { display:flex; gap:10px; }
+  .btn { border:none; border-radius:14px; height:52px; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 14px; }
+  .btn.y { background:var(--y); color:var(--k); }
+  .btn.k { background:var(--k); color:#fff; }
+  .btn.w { background:#fff; color:var(--k); border:1px solid var(--line2); font-weight:700; }
+  .btn.o { background:#fff; color:var(--k); border:1px solid var(--k); font-weight:700; }
+  .btn.grow { flex:1; }
+  .btn.rec { background:#d11f2f; color:#fff; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .sect { font-size:12px; font-weight:700; color:var(--g); letter-spacing:.08em; }
+  .sect-row { display:flex; justify-content:space-between; align-items:baseline; padding-top:4px; }
+  .muted { font-size:12px; color:var(--g); font-weight:600; }
+  .hint { font-size:12px; color:var(--g); font-weight:500; line-height:1.5; text-align:center; padding:4px 10px; }
+  .inputrow { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line2); border-radius:14px; padding:6px 6px 6px 14px; }
+  .inputrow input { flex:1; border:none; background:transparent; height:40px; min-width:0; font-weight:500; }
+  .inputrow .add { background:var(--k); color:#fff; border:none; border-radius:10px; height:40px; padding:0 14px; font-size:13px; font-weight:700; }
+  .note { display:flex; align-items:flex-start; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .note .dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0; }
+  .note .txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .note .t { font-weight:600; line-height:1.35; word-break:break-word; }
+  .note .m { font-size:11px; color:var(--g); font-weight:600; }
+  .tag { background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:4px 10px; font-size:11px; font-weight:700; color:#4a4a48; flex-shrink:0; }
+  .icon-btn { background:transparent; border:1px solid var(--line); border-radius:8px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:var(--bg); color:var(--k); border:1px solid var(--line); border-radius:999px; padding:9px 12px; font-size:12px; font-weight:700; min-height:36px; }
+  .chip.on { background:var(--k); color:#fff; border-color:var(--k); }
+  .q-head { display:flex; justify-content:space-between; align-items:center; }
+  .q-head .l { font-size:14px; font-weight:700; }
+  .q-head .s { font-size:11px; font-weight:700; color:#b8b8b4; }
+  .q-head .s.ok { color:var(--ok); }
+  .bar { height:6px; background:var(--line); border-radius:999px; overflow:hidden; }
+  .bar > div { height:6px; background:var(--y); border-radius:999px; }
+  .hotelrow { display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; text-align:left; width:100%; }
+  .hotelrow.act { border-color:var(--k); }
+  .hotelrow .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .hotelrow .c { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .hotelrow .n { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hotelrow .s { font-size:12px; color:var(--g); font-weight:600; }
+  .hotelrow .tg { font-size:11px; font-weight:700; color:var(--g); flex-shrink:0; }
+  .stars { display:flex; gap:6px; }
+  .stars button { flex:1; height:44px; background:var(--bg); border:1px solid var(--line); border-radius:10px; display:flex; align-items:center; justify-content:center; }
+  .stars button.on { background:#fff7dd; border-color:var(--y); }
+  .kpi { flex:1; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:2px; background:#fff; border:1px solid var(--line); }
+  .kpi.k { background:var(--k); color:#fff; border-color:var(--k); }
+  .kpi .v { font-size:26px; font-weight:800; }
+  .kpi.k .v { color:var(--y); }
+  .kpi .l { font-size:12px; font-weight:600; color:var(--g); }
+  .kpi.k .l { color:#b8b8b4; }
+  .dots { display:flex; gap:4px; }
+  .dots > div { flex:1; height:6px; border-radius:999px; background:var(--line); }
+  .dots > div.done { background:var(--k); }
+  .dots > div.cur { background:var(--y); }
+  .nav { display:flex; background:#fff; border-top:1px solid var(--line); padding:6px 8px calc(env(safe-area-inset-bottom) + 8px); flex-shrink:0; }
+  .nav button { flex:1; background:transparent; border:none; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 0; min-height:48px; }
+  .nav button .b { width:28px; height:4px; border-radius:999px; background:transparent; }
+  .nav button.on .b { background:var(--y); }
+  .nav button .l { font-size:12px; font-weight:700; color:var(--g); }
+  .nav button.on .l { color:var(--k); }
+  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom) + 92px); width:min(92vw, 480px); background:var(--k); color:#fff; border-radius:12px; padding:12px 14px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(0,0,0,.25); z-index:50; opacity:0; pointer-events:none; transition:opacity .2s; }
+  .toast.show { opacity:1; }
+  .toast .d { width:8px; height:8px; border-radius:50%; background:var(--y); flex-shrink:0; }
+  .empty { border:1px dashed #c9c9c4; border-radius:12px; padding:20px; text-align:center; font-size:13px; color:var(--g); font-weight:500; line-height:1.5; }
+  .warnbox { background:#fff7dd; border:1px solid #f3dc99; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .warnbox .h { font-size:13px; font-weight:800; }
+  .warnbox .p { font-size:12px; color:#4a4a48; font-weight:500; line-height:1.5; }
+  textarea.ta { width:100%; border:1px solid var(--line2); border-radius:12px; padding:10px 12px; min-height:72px; resize:vertical; background:#fff; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:12px; font-weight:700; color:var(--g); }
+  .field input { border:1px solid var(--line2); border-radius:12px; padding:0 12px; height:44px; background:#fff; }
+  .audio { width:100%; height:36px; }
+  .status { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--g); font-weight:600; padding:4px 4px; }
+  .status .d { width:8px; height:8px; border-radius:50%; background:var(--ok); }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:flex-end; justify-content:center; z-index:60; }
+  .modal .sheet { background:var(--bg); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:18px 16px calc(env(safe-area-inset-bottom) + 18px); display:flex; flex-direction:column; gap:12px; max-height:85dvh; overflow-y:auto; }
+  .modal .sheet h3 { margin:0; font-size:18px; font-weight:800; }
+  .small { font-size:12px; color:var(--g); font-weight:500; line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"><div class="d"></div><span id="toast-text"></span></div>
+<script>
+'use strict';
+/* =========================================================
+   Infocesty – terénny zápisník · Primatour s.r.o.
+   Jednosúborová offline appka. Dáta: localStorage (stav) + IndexedDB (audio).
+   ========================================================= */
+
+// ---------- Konfigurácia checklistu ----------
+const QUESTIONS = [
+  { key:'plaz', label:'Typ pláže', options:['piesok','štrk','kamienky','piesok+štrk','betónové platá'] },
+  { key:'plazchar', label:'Pláž – šírka a typ', multi:true, options:['široká','úzka','hotelová','verejná'] },
+  { key:'vzd', label:'Pláž od hotela', options:['pri hoteli','do 100 m','do 300 m','do 1 km','cez cestu','podchod'] },
+  { key:'vstup', label:'Vstup do vody', multi:true, options:['pozvoľný','prudký','treba obuv','cez mólo','odliv / plytko'] },
+  { key:'bar', label:'Bar na pláži (nápoje)', options:['áno, v cene','áno, za poplatok','nie'] },
+  { key:'rest', label:'Reštaurácia na pláži (jedlo v plavkách)', options:['áno, v cene','áno, za poplatok','nie'] },
+  { key:'lezadla', label:'Ležadlá a slnečníky', options:['v cene','za poplatok','nie sú'] },
+  { key:'anim', label:'Animácie', options:['deti','dospelí','oboje','nie'] },
+  { key:'okolie', label:'Čo robiť v okolí', multi:true, options:['centrum pešo','obchody','promenáda','výlety','nič, len hotel'] },
+  { key:'bezlepok', label:'Bezlepková strava', options:['na požiadanie','označené v bufete','nie','spýtať manažéra'] },
+  { key:'alacarte', label:'À la carte', options:['1× v cene','viackrát v cene','za poplatok','nie je'] },
+  { key:'pristelka', label:'Prístelka', options:['riadna posteľ','rozkladacie kreslo','pohovka','spýtať manažéra'] },
+  { key:'letisko', label:'Vzdialenosť od letiska', options:['do 30 min','30–60 min','60–90 min','viac ako 90 min'] },
+];
+const EXTRA = [
+  { key:'prekoho', label:'Pre koho', multi:true, options:['rodiny s malými deťmi','rodiny so staršími deťmi','páry','seniori','mladí','náročnejší'] },
+  { key:'odporucit', label:'Odporučili by sme?', options:['áno','áno, s výhradami','nie'] },
+];
+const ALLQ = [...QUESTIONS, ...EXTRA];
+const GUIDE = [
+  { key:'dojem', title:'Prvý dojem', hint:'Hneď pri vstupe – areál, recepcia, atmosféra. Jedna veta stačí.', rating:'r_dojem', ratingLabel:'Prvý dojem hotela', questions:[], topic:'areál', ph:'napr. „upravený areál, veľa zelene“' },
+  { key:'izby', title:'Izby', hint:'Stav, veľkosť, kúpeľňa, hluk, výhľad. Odfoťte aj 0,5× záber.', rating:'r_izby', ratingLabel:'Izby celkovo', questions:['pristelka'], topic:'izby', ph:'napr. „izby staré, ale čisté“' },
+  { key:'plaz', title:'Pláž', hint:'To, na čo sa klienti pýtajú najviac.', rating:'r_plaz', ratingLabel:'Pláž celkovo', questions:['plaz','plazchar','vzd','vstup','bar','rest','lezadla'], topic:'pláž', ph:'napr. „pláž široká, ležadlá ďaleko od mora“' },
+  { key:'jedlo', title:'Jedlo', hint:'Bufet, à la carte, špeciálne stravovanie.', rating:'r_jedlo', ratingLabel:'Stravovanie', questions:['alacarte','bezlepok'], topic:'jedlo', ph:'napr. „bufet široký, dezerty slabšie“' },
+  { key:'okolie', title:'Okolie a aktivity', hint:'Čo klient robí mimo pláže.', rating:null, questions:['okolie','anim','letisko'], topic:'okolie', ph:'napr. „taverny 10 min pešo“' },
+  { key:'zaver', title:'Záver', hint:'Komu hotel odporučiť a na čo upozorniť.', rating:'r_celkovo', ratingLabel:'Celkový dojem', questions:['prekoho','odporucit'], topic:'upozornenie', ph:'upozornenie pre klienta, napr. „hluk z baru do 23:00“' },
+];
+const TOPICS = ['bod','izby','pláž','jedlo','areál','okolie','manažér','upozornenie'];
+const TOPIC_COLOR = { izby:'#151515', 'pláž':'#2e7fb8', jedlo:'#c2410c', 'areál':'#2e8b57', okolie:'#7c3aed', 'manažér':'#b07f00', upozornenie:'#d11f2f', hlas:'#fab70f' };
+
+// ---------- Úložisko ----------
+const LS_KEY = 'infocesty.v1';
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const nowIso = () => new Date().toISOString();
+const hhmm = (iso) => { const d = new Date(iso); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+const dmy = (iso) => { const d = new Date(iso); return d.getDate() + '. ' + (d.getMonth()+1) + '. ' + d.getFullYear(); };
+const pl = (n, one, few, many) => n + ' ' + (n === 1 ? one : (n >= 2 && n <= 4) ? few : many);
+
+let S = load();
+function defaultState() {
+  return { trips: [], activeTripId: null, activeHotelId: null, screen: 'trip', guideStep: 0, author: '' };
+}
+function load() {
+  try { const raw = localStorage.getItem(LS_KEY); if (raw) { const s = JSON.parse(raw); return Object.assign(defaultState(), s); } } catch (e) {}
+  return defaultState();
+}
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { toast('Nepodarilo sa uložiť – málo miesta?'); } }
+
+// IndexedDB pre audio
+let dbp = null;
+function db() {
+  if (dbp) return dbp;
+  dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('infocesty-audio', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('audio'); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return dbp;
+}
+async function audioPut(id, blob) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('audio', 'readwrite'); t.objectStore('audio').put(blob, id); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+async function audioGet(id) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('audio', 'readonly'); const q = t.objectStore('audio').get(id); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); }); }
+async function audioDel(id) { const d = await db(); return new Promise((res) => { const t = d.transaction('audio', 'readwrite'); t.objectStore('audio').delete(id); t.oncomplete = res; t.onerror = res; }); }
+
+// ---------- Katalóg hotelov (Cesys) ----------
+let CATALOG = [];  // [kod, nazov, letovisko, krajina, typ]
+const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+async function loadCatalog() {
+  try {
+    const cached = localStorage.getItem('infocesty.catalog.v1');
+    if (cached) { CATALOG = JSON.parse(cached); }
+    const r = await fetch('hotels.json', { cache: 'force-cache' });
+    if (r.ok) { const data = await r.json(); CATALOG = data; try { localStorage.setItem('infocesty.catalog.v1', JSON.stringify(data)); } catch (e) {} }
+  } catch (e) {}
+}
+function searchCatalog(q, limit) {
+  q = norm(q).trim(); if (q.length < 2 || !CATALOG.length) return [];
+  const words = q.split(/\s+/);
+  const inTrip = new Set(hotels().map(h => h.cesysId).filter(Boolean));
+  const res = [];
+  for (const c of CATALOG) {
+    const hay = norm(c[1]) + ' ' + norm(c[2]) + ' ' + norm(c[3]);
+    if (words.every(w => hay.includes(w))) { res.push(c); if (res.length >= limit * 3) break; }
+  }
+  res.sort((a, b) => (norm(a[1]).startsWith(q) ? 0 : 1) - (norm(b[1]).startsWith(q) ? 0 : 1) || a[1].localeCompare(b[1]));
+  return res.filter(c => !inTrip.has(c[0])).slice(0, limit);
+}
+
+// ---------- Pomocné ----------
+function trip() { return S.trips.find(t => t.id === S.activeTripId) || null; }
+function hotels() { const t = trip(); return t ? t.hotels : []; }
+function active() { return hotels().find(h => h.id === S.activeHotelId) || null; }
+function has(h, k) { const v = h.answers[k]; return Array.isArray(v) ? v.length > 0 : !!v; }
+function answeredCount(h) { return QUESTIONS.filter(q => has(h, q.key)).length; }
+function go(screen) { S.screen = screen; save(); render(); document.querySelector('.body') && (document.querySelector('.body').scrollTop = 0); }
+let toastT = null;
+function toast(text) { const el = document.getElementById('toast'); document.getElementById('toast-text').textContent = text; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1900); }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function setActiveHotel(id) {
+  const t = trip(); if (!t) return;
+  const now = nowIso();
+  // ukončiť predchádzajúcu aktiváciu
+  const prev = active();
+  if (prev && prev.activations && prev.activations.length) { const last = prev.activations[prev.activations.length - 1]; if (!last.end) last.end = now; }
+  S.activeHotelId = id;
+  const h = active();
+  if (h) { h.visited = true; h.activations = h.activations || []; h.activations.push({ start: now, end: null }); }
+  save();
+}
+function addHotel(name, place, extra) {
+  const t = trip(); if (!t) return null;
+  const h = { id: uid(), name: name.trim(), place: (place || '').trim(), stars: '', visited: false, notes: [], answers: {}, activations: [], created: nowIso(), cesysId: extra && extra.cesysId || null, country: extra && extra.country || '' };
+  t.hotels.push(h); save(); return h;
+}
+function addNote(text, topic, audioId) {
+  const h = active(); if (!h) return;
+  h.notes.push({ id: uid(), text, topic: topic || 'bod', ts: nowIso(), audioId: audioId || null });
+  save();
+}
+
+// ---------- Nahrávanie hlasu ----------
+let rec = null, recChunks = [], recStart = 0, recTimer = null;
+async function toggleRecord(topic) {
+  if (rec) { rec.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Nahrávanie tento prehliadač nepodporuje'); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    recChunks = []; recStart = Date.now();
+    rec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(recTimer);
+      const blob = new Blob(recChunks, { type: rec.mimeType || mime || 'audio/webm' });
+      const secs = Math.max(1, Math.round((Date.now() - recStart) / 1000));
+      rec = null;
+      if (blob.size < 1000) { toast('Nahrávka je prázdna'); render(); return; }
+      const id = uid();
+      try { await audioPut(id, blob); } catch (e) { toast('Audio sa nepodarilo uložiť'); render(); return; }
+      addNote('Hlasová poznámka ' + Math.floor(secs/60) + ':' + String(secs%60).padStart(2,'0') + ' – prepíše sa po návrate', topic || 'hlas', id);
+      toast('Nahrávka uložená k hotelu ' + active().name);
+      render();
+    };
+    rec.start(1000);
+    recTimer = setInterval(render, 1000);
+    render();
+  } catch (e) { toast('Mikrofón nie je povolený'); }
+}
+function recLabel() { if (!rec) return 'Nahrať poznámku'; const s = Math.round((Date.now() - recStart) / 1000); return 'Nahrávam ' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0') + ' · ťuknite pre stop'; }
+
+// ---------- Export ----------
+function blobToBase64(blob) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); }); }
+function labelOf(key) { const q = ALLQ.find(x => x.key === key); return q ? q.label : key; }
+function answerText(v) { return Array.isArray(v) ? v.join(', ') : String(v); }
+function buildTextReport(t) {
+  const L = [];
+  L.push('INFOCESTA: ' + t.name + (t.dates ? ' · ' + t.dates : '') + (S.author ? ' · ' + S.author : ''));
+  L.push('Export: ' + dmy(nowIso()) + ' ' + hhmm(nowIso()));
+  L.push('');
+  for (const h of t.hotels) {
+    L.push('==============================');
+    L.push(h.name + (h.stars ? ' ' + h.stars : '') + (h.place ? ' · ' + h.place : '') + (h.country ? ' · ' + h.country : '') + (h.cesysId ? ' · kód Cesys ' + h.cesysId : '') + (h.visited ? '' : ' · (nenavštívený)'));
+    L.push('==============================');
+    if (h.activations && h.activations.length) L.push('Časy v hoteli: ' + h.activations.map(a => hhmm(a.start) + '–' + (a.end ? hhmm(a.end) : '…') + ' (' + dmy(a.start) + ')').join(', '));
+    const r = ['r_dojem','r_izby','r_plaz','r_jedlo','r_celkovo'].filter(k => h.answers[k]).map(k => ({ r_dojem:'Prvý dojem', r_izby:'Izby', r_plaz:'Pláž', r_jedlo:'Jedlo', r_celkovo:'Celkovo' }[k]) + ' ' + h.answers[k] + '/5');
+    if (r.length) L.push('Hodnotenie: ' + r.join(' · '));
+    const qa = ALLQ.filter(q => has(h, q.key));
+    if (qa.length) { L.push(''); L.push('CHECKLIST:'); qa.forEach(q => L.push('  ' + q.label + ': ' + answerText(h.answers[q.key]))); }
+    if (h.notes.length) { L.push(''); L.push('POZNÁMKY:'); h.notes.forEach(n => L.push('  [' + hhmm(n.ts) + '] (' + n.topic + ') ' + n.text + (n.audioId ? '  → audio ' + n.audioId : ''))); }
+    L.push('');
+  }
+  return L.join('\n');
+}
+async function exportTrip(withAudio) {
+  const t = trip(); if (!t) return;
+  toast('Pripravujem export…');
+  const data = { app: 'infocesty-zapisnik', version: 1, exported: nowIso(), author: S.author, trip: { id: t.id, name: t.name, dates: t.dates, created: t.created }, hotels: t.hotels, audio: [] };
+  const files = [];
+  const base = (t.name || 'infocesta').replace(/[^\w\-]+/g, '_');
+  if (withAudio) {
+    for (const h of t.hotels) for (const n of h.notes) if (n.audioId) {
+      const b = await audioGet(n.audioId);
+      if (b) { data.audio.push({ id: n.audioId, hotel: h.name, mime: b.type, base64: await blobToBase64(b) }); }
+    }
+  }
+  files.push(new File([JSON.stringify(data, null, 2)], base + '.json', { type: 'application/json' }));
+  files.push(new File([buildTextReport(t)], base + '.txt', { type: 'text/plain' }));
+  if (navigator.canShare && navigator.canShare({ files })) {
+    try { await navigator.share({ files, title: 'Infocesta ' + t.name }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  for (const f of files) { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); }
+  toast('Súbory stiahnuté');
+}
+
+// ---------- Render ----------
+const ICON = {
+  logo: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#151515" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M5 20l3-9 4 3 5-8 2 14"/></svg>',
+  swap: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151515" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>',
+  mic: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>',
+  check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#151515" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="m3 6 1 1 2-2"/><path d="m3 12 1 1 2-2"/><path d="m3 18 1 1 2-2"/></svg>',
+  arrow: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#151515" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+  plus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#696f6f" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>',
+  ok: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2e8b57" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>',
+  play: '<svg width="16" height="16" viewBox="0 0 24 24" fill="#151515"><path d="M7 5v14l11-7z"/></svg>',
+  star: (on) => '<svg width="22" height="22" viewBox="0 0 24 24" fill="' + (on ? '#fab70f' : 'none') + '" stroke="' + (on ? '#b07f00' : '#9a9a96') + '" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4 6.3 20.5l1.2-6.4L2.8 9.7l6.4-.8z"/></svg>',
+  search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#696f6f" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  share: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>',
+};
+
+function render() {
+  const app = document.getElementById('app');
+  const t = trip(); const h = active();
+  const scr = t ? S.screen : 'trip';
+  if (scr !== 'trip' && !h && scr !== 'switch') { S.screen = 'switch'; }
+  const s = S.screen;
+  const showHotel = h && (s === 'hotel' || s === 'checklist' || s === 'guide');
+  const titles = { switch: 'V ktorom hoteli som?', day: 'Prehľad dňa', trip: t ? 'Moja infocesta' : 'Infocesty' };
+  let html = '<div class="hdr"><div class="brand"><div class="logo"><div class="sq">' + ICON.logo + '</div>PRIMATOUR</div><div class="trip">' + esc(t ? t.name : 'terénny zápisník') + '</div></div>';
+  if (showHotel) {
+    html += '<button class="active-btn" data-act="switch"><div style="min-width:0"><div class="lbl">SOM V HOTELI</div><div class="name">' + esc(h.name) + '</div><div class="sub">' + esc([h.place, h.stars].filter(Boolean).join(' · ') || 'doplňte miesto v zozname hotelov') + '</div></div><div class="sw">Prepnúť ' + ICON.swap + '</div></button>';
+  } else {
+    html += '<div class="title">' + esc(titles[s] || '') + '</div>';
+  }
+  html += '</div><div class="body">';
+  html += ({ hotel: rHotel, switch: rSwitch, checklist: rChecklist, guide: rGuide, day: rDay, trip: rTrip }[s] || rTrip)(t, h);
+  html += '</div>';
+  html += '<div class="nav">' + [['hotel','Hotel'],['checklist','Checklist'],['day','Deň'],['trip','Cesta']].map(([k, l]) => '<button data-nav="' + k + '" class="' + (s === k ? 'on' : '') + '"><div class="b"></div><div class="l">' + l + '</div></button>').join('') + '</div>';
+  app.innerHTML = html;
+  bind(app);
+}
+
+function rHotel(t, h) {
+  const notes = h.notes.slice().reverse();
+  const a = answeredCount(h);
+  let x = '<div class="screen">';
+  x += '<div class="row"><button class="btn grow ' + (rec ? 'rec' : 'y') + '" data-act="rec">' + ICON.mic + '<span>' + recLabel() + '</span></button>';
+  x += '<button class="btn w" style="width:88px;flex-direction:column;gap:2px;font-size:11px" data-act="checklist">' + ICON.check + 'Checklist ' + a + '/' + QUESTIONS.length + '</button></div>';
+  x += '<div class="inputrow"><input id="draft" placeholder="+ bod, napr. „pláž štrk, cez cestu“" autocomplete="off" enterkeyhint="done"><button class="add" data-act="addnote">Pridať</button></div>';
+  x += '<div class="sect-row"><div class="sect">BODY K TOMUTO HOTELU</div><div class="muted">' + pl(notes.length, 'bod', 'body', 'bodov') + '</div></div>';
+  if (!notes.length) x += '<div class="empty">Zatiaľ nič. Napíšte prvý bod alebo stlačte Nahrať. Pevné otázky (typ pláže, ležadlá, animácie…) sú v Checkliste.</div>';
+  for (const n of notes) {
+    x += '<div class="note"><div class="dot" style="background:' + (TOPIC_COLOR[n.topic] || '#9a9a96') + '"></div><div class="txt"><div class="t">' + esc(n.text) + '</div><div class="m">' + hhmm(n.ts) + ' · ' + (n.audioId ? 'hlasová poznámka' : 'bod') + '</div>' + (n.audioId ? '<div id="au-' + n.id + '"></div>' : '') + '</div>';
+    x += (n.audioId ? '<button class="icon-btn" data-play="' + n.id + '" title="Prehrať">' + ICON.play + '</button>' : '<button class="tag" data-cycle="' + n.id + '">' + esc(n.topic) + '</button>');
+    x += '<button class="icon-btn" data-del="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
+  }
+  x += '<div class="card" style="flex-direction:row;align-items:center;gap:10px;margin-top:4px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#696f6f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><div><div style="font-size:13px;font-weight:700">Foťte bežným fotoaparátom</div><div class="muted">časy v hoteli sa ukladajú – fotky spárujeme podľa nich</div></div></div>';
+  x += '<button class="btn o" data-act="guide">' + ICON.arrow + 'Prejsť hotel krok za krokom</button>';
+  x += '</div>';
+  return x;
+}
+
+function rSwitch(t, h) {
+  const q = (S._search || '').trim().toLowerCase();
+  const list = hotels().filter(x => !q || x.name.toLowerCase().includes(q) || (x.place || '').toLowerCase().includes(q));
+  const canCreate = q.length >= 2 && !hotels().some(x => x.name.toLowerCase() === q);
+  let x = '<div class="screen">';
+  x += '<div class="inputrow" style="padding-left:12px">' + ICON.search + '<input id="search" placeholder="Hľadať hotel alebo napísať nový" autocomplete="off" value="' + esc(S._search || '') + '"></div>';
+  if (list.length) x += '<div class="sect">HOTELY NA TEJTO CESTE</div>';
+  if (!list.length && !q) x += '<div class="empty">Zoznam je prázdny. Napíšte názov hotela hore – appka ponúkne hotely z ponuky Cesys.</div>';
+  for (const hh of list) {
+    const isA = h && hh.id === h.id; const n = hh.notes.length;
+    x += '<button class="hotelrow ' + (isA ? 'act' : '') + '" data-pick="' + hh.id + '"><div class="dot" style="background:' + (isA ? '#fab70f' : hh.visited ? '#2e8b57' : '#d4d4d0') + '"></div><div class="c"><div class="n">' + esc(hh.name) + '</div><div class="s">' + esc([hh.place, hh.stars].filter(Boolean).join(' · ')) + (hh.place || hh.stars ? ' · ' : '') + (hh.visited ? pl(n, 'bod', 'body', 'bodov') : 'nenavštívený') + '</div></div><div class="tg" style="color:' + (isA ? '#b07f00' : '#696f6f') + '">' + (isA ? 'AKTÍVNY' : hh.visited ? 'navštívený' : '') + '</div></button>';
+  }
+  x += suggestHtml(S._search, 'switch');
+  if (canCreate) x += '<button class="btn k" data-act="create">' + ICON.plus + 'Pridať nový hotel „' + esc(S._search.trim()) + '“ (nie je v ponuke)</button>';
+  x += '<div class="hint">Začnite písať názov – appka ponúkne hotely z ponuky Cesys aj s letoviskom. Ak hotel v ponuke nie je, stačí ho pomenovať.</div></div>';
+  return x;
+}
+
+function suggestHtml(q, ctx) {
+  const list = searchCatalog(q, 6);
+  if (!list.length) return '';
+  return '<div class="sect" style="padding-top:4px">Z PONUKY (CESYS)</div>' + list.map(c => '<button class="hotelrow" data-cat="' + esc(c[0]) + '" data-ctx="' + ctx + '"><div class="dot" style="background:#fab70f"></div><div class="c"><div class="n">' + esc(c[1]) + '</div><div class="s">' + esc([c[2], c[3]].filter(Boolean).join(' · ')) + ' · kód ' + esc(c[0]) + '</div></div><div class="tg">pridať</div></button>').join('');
+}
+function chipsHtml(h, q, ctx) {
+  const chosen = h.answers[q.key]; const filled = has(h, q.key);
+  let x = '<div class="card"><div class="q-head"><div class="l">' + esc(q.label) + (q.multi ? ' <span class="muted">(viac možností)</span>' : '') + '</div><div class="s ' + (filled ? 'ok' : '') + '">' + (filled ? 'vyplnené' : 'chýba') + '</div></div><div class="chips">';
+  for (const o of q.options) { const sel = q.multi ? (Array.isArray(chosen) && chosen.includes(o)) : chosen === o; x += '<button class="chip ' + (sel ? 'on' : '') + '" data-q="' + q.key + '" data-o="' + esc(o) + '">' + esc(o) + '</button>'; }
+  return x + '</div></div>';
+}
+function pickAnswer(h, key, o) {
+  const q = ALLQ.find(x => x.key === key); if (!q) return;
+  const a = h.answers;
+  if (q.multi) { const cur = Array.isArray(a[key]) ? a[key] : []; a[key] = cur.includes(o) ? cur.filter(x => x !== o) : [...cur, o]; if (!a[key].length) delete a[key]; }
+  else { if (a[key] === o) delete a[key]; else a[key] = o; }
+  save();
+}
+
+function rChecklist(t, h) {
+  const a = answeredCount(h);
+  let x = '<div class="screen"><div class="sect-row"><div class="sect">OTÁZKY KLIENTOV</div><div style="font-size:12px;font-weight:700;background:#fab70f;border-radius:999px;padding:4px 10px">' + a + ' z ' + QUESTIONS.length + '</div></div>';
+  x += '<div class="bar"><div style="width:' + Math.round(a / QUESTIONS.length * 100) + '%"></div></div>';
+  for (const q of QUESTIONS) x += chipsHtml(h, q);
+  x += '<button class="btn k" data-act="hotel">Hotovo, späť na poznámky</button></div>';
+  return x;
+}
+
+function rGuide(t, h) {
+  const i = Math.min(S.guideStep, GUIDE.length - 1); const g = GUIDE[i];
+  const rating = g.rating ? (h.answers[g.rating] || 0) : 0;
+  const notes = h.notes.filter(n => n.topic === g.topic);
+  let x = '<div class="screen"><div class="sect-row"><div class="sect">KROK ' + (i + 1) + ' Z ' + GUIDE.length + '</div><button data-act="hotel" style="background:transparent;border:none;font-size:12px;font-weight:700;color:#696f6f">Ukončiť</button></div>';
+  x += '<div class="dots">' + GUIDE.map((_, k) => '<div class="' + (k < i ? 'done' : k === i ? 'cur' : '') + '"></div>').join('') + '</div>';
+  x += '<div class="title" style="padding-top:4px">' + esc(g.title) + '</div><div class="small">' + esc(g.hint) + '</div>';
+  if (g.rating) { x += '<div class="card"><div style="font-size:14px;font-weight:700">' + esc(g.ratingLabel) + '</div><div class="stars">' + [1,2,3,4,5].map(n => '<button class="' + (n <= rating ? 'on' : '') + '" data-star="' + n + '" data-rk="' + g.rating + '">' + ICON.star(n <= rating) + '</button>').join('') + '</div></div>'; }
+  for (const k of g.questions) { const q = ALLQ.find(z => z.key === k); if (q) x += chipsHtml(h, q); }
+  x += '<div class="inputrow"><input id="draft" placeholder="' + esc(g.ph) + '" autocomplete="off" enterkeyhint="done"><button class="add" data-act="addnote" data-topic="' + esc(g.topic) + '">Pridať</button></div>';
+  x += '<button class="btn ' + (rec ? 'rec' : 'w') + '" data-act="rec" data-topic="' + esc(g.topic) + '">' + ICON.mic + '<span>' + (rec ? recLabel() : 'Nahrať k tomuto kroku') + '</span></button>';
+  if (notes.length) x += '<div style="display:flex;flex-direction:column;gap:6px">' + notes.map(n => '<div class="small" style="color:#4a4a48;font-weight:600;padding:0 4px">• ' + esc(n.text) + '</div>').join('') + '</div>';
+  x += '<div class="row" style="padding-top:4px">' + (i > 0 ? '<button class="btn w grow" data-act="gback">Späť</button>' : '') + '<button class="btn y" style="flex:2" data-act="gnext">' + (i === GUIDE.length - 1 ? 'Hotovo – hotel prejdený' : 'Ďalej') + '</button></div></div>';
+  return x;
+}
+
+function rDay(t, h) {
+  const today = new Date().toDateString();
+  const visitedToday = hotels().filter(x => (x.activations || []).some(a => new Date(a.start).toDateString() === today));
+  const visited = visitedToday.length ? visitedToday : hotels().filter(x => x.visited);
+  const notes = visited.reduce((n, x) => n + x.notes.length, 0);
+  const audio = visited.reduce((n, x) => n + x.notes.filter(z => z.audioId).length, 0);
+  let x = '<div class="screen"><div class="row"><div class="kpi k"><div class="v">' + visited.length + '</div><div class="l">' + (visited.length === 1 ? 'hotel dnes' : visited.length >= 2 && visited.length <= 4 ? 'hotely dnes' : 'hotelov dnes') + '</div></div><div class="kpi"><div class="v">' + notes + '</div><div class="l">' + (notes === 1 ? 'bod' : notes >= 2 && notes <= 4 ? 'body' : 'bodov') + '</div></div><div class="kpi"><div class="v">' + audio + '</div><div class="l">' + (audio === 1 ? 'nahrávka' : audio >= 2 && audio <= 4 ? 'nahrávky' : 'nahrávok') + '</div></div></div>';
+  x += '<div class="sect" style="padding-top:4px">ČO EŠTE DOPLNIŤ</div>';
+  if (!visited.length) x += '<div class="empty">Dnes ste zatiaľ neboli v žiadnom hoteli. Prepnite hotel v záložke Hotel.</div>';
+  for (const hh of visited) {
+    const a = answeredCount(hh); const needs = a < QUESTIONS.length || hh.notes.length === 0;
+    x += '<div class="hotelrow"><div class="dot" style="background:' + (needs ? '#fab70f' : '#2e8b57') + '"></div><div class="c"><div class="n">' + esc(hh.name) + '</div><div class="s">' + pl(hh.notes.length, 'bod', 'body', 'bodov') + ' · checklist ' + a + '/' + QUESTIONS.length + '</div></div>' + (needs ? '<button class="sw" style="background:#fab70f;border:none;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700" data-fix="' + hh.id + '" data-to="' + (hh.notes.length === 0 ? 'hotel' : 'checklist') + '">' + (hh.notes.length === 0 ? 'Doplniť body' : 'Dokončiť checklist') + '</button>' : ICON.ok) + '</div>';
+  }
+  x += '<div class="warnbox"><div class="h">Fotky</div><div class="p">Foťte bežným fotoaparátom telefónu. Appka si pamätá, kedy ste boli v ktorom hoteli, takže fotky sa po návrate spárujú podľa času. Nič netreba triediť.</div></div>';
+  x += '<div class="status"><div class="d"></div>Uložené v telefóne · funguje bez internetu</div></div>';
+  return x;
+}
+
+function rTrip(t, h) {
+  let x = '<div class="screen">';
+  if (!t) {
+    x += '<div class="card"><h3 style="margin:0;font-size:16px;font-weight:800">Nová infocesta</h3><div class="field"><label>Názov</label><input id="tname" placeholder="napr. Rodos, september 2026"></div><div class="field"><label>Termín (nepovinné)</label><input id="tdates" placeholder="napr. 18.–24. 9. 2026"></div><div class="field"><label>Kto zapisuje</label><input id="tauthor" placeholder="napr. Martin" value="' + esc(S.author) + '"></div><button class="btn y" data-act="newtrip">Založiť cestu</button></div>';
+    if (S.trips.length) { x += '<div class="sect">PREDCHÁDZAJÚCE CESTY</div>'; for (const tt of S.trips) x += '<button class="hotelrow" data-opentrip="' + tt.id + '"><div class="c"><div class="n">' + esc(tt.name) + '</div><div class="s">' + esc(tt.dates || '') + ' · ' + pl(tt.hotels.length, 'hotel', 'hotely', 'hotelov') + '</div></div></button>'; }
+    return x + '</div>';
+  }
+  x += '<div class="card"><div style="font-size:16px;font-weight:800">' + esc(t.name) + '</div><div class="muted">' + esc([t.dates, S.author].filter(Boolean).join(' · ')) + '</div></div>';
+  x += '<div class="sect">HOTELY NA CESTE</div>';
+  if (!t.hotels.length) x += '<div class="empty">Zatiaľ žiadne hotely. Pridajte tie, ktoré asi uvidíte – alebo ich pridávajte až na mieste.</div>';
+  for (const hh of t.hotels) {
+    x += '<div class="hotelrow"><div class="dot" style="background:' + (h && hh.id === h.id ? '#fab70f' : hh.visited ? '#2e8b57' : '#d4d4d0') + '"></div><div class="c" data-edit="' + hh.id + '"><div class="n">' + esc(hh.name) + '</div><div class="s">' + esc([hh.place, hh.country, hh.stars].filter(Boolean).join(' · ') || 'ťuknite pre doplnenie miesta') + (hh.cesysId ? ' · kód ' + esc(hh.cesysId) : '') + '</div></div><button class="icon-btn" data-remove="' + hh.id + '">' + ICON.x + '</button></div>';
+  }
+  x += '<div class="inputrow"><input id="newhotel" placeholder="Názov hotela" autocomplete="off" enterkeyhint="done" value="' + esc(S._newhotel || '') + '"><button class="add" data-act="addhotel">Pridať</button></div>';
+  x += suggestHtml(S._newhotel, 'trip');
+  x += '<div class="hint">Zoznam je len pomôcka. Program sa mení – hotely pridávate a odoberáte kedykoľvek.</div>';
+  x += '<div class="sect" style="padding-top:8px">EXPORT A NASTAVENIA</div>';
+  x += '<button class="btn y" data-act="export">' + ICON.share + 'Odoslať / uložiť export (s nahrávkami)</button>';
+  x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
+  x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
+  x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.2 · Primatour</div>';
+  return x + '</div>';
+}
+
+// ---------- Udalosti ----------
+function bind(app) {
+  app.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => { if (!trip()) { go('trip'); return; } if (!active() && b.dataset.nav !== 'trip' && b.dataset.nav !== 'day') { S._search = ''; go('switch'); return; } go(b.dataset.nav); });
+  app.querySelectorAll('[data-act]').forEach(b => b.onclick = () => act(b.dataset.act, b));
+  app.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { setActiveHotel(b.dataset.pick); S._search = ''; toast('Som v hoteli ' + active().name); go('hotel'); });
+  app.querySelectorAll('[data-cycle]').forEach(b => b.onclick = () => { const n = active().notes.find(z => z.id === b.dataset.cycle); if (!n) return; n.topic = TOPICS[(TOPICS.indexOf(n.topic) + 1) % TOPICS.length]; save(); render(); });
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const h = active(); const n = h.notes.find(z => z.id === b.dataset.del); if (!n) return; if (!confirm('Zmazať tento bod?')) return; if (n.audioId) await audioDel(n.audioId); h.notes = h.notes.filter(z => z.id !== n.id); save(); render(); });
+  app.querySelectorAll('[data-play]').forEach(b => b.onclick = async () => { const n = active().notes.find(z => z.id === b.dataset.play); const blob = await audioGet(n.audioId); if (!blob) { toast('Nahrávka sa nenašla'); return; } const host = document.getElementById('au-' + n.id); host.innerHTML = '<audio class="audio" controls autoplay src="' + URL.createObjectURL(blob) + '"></audio>'; });
+  app.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { pickAnswer(active(), b.dataset.q, b.dataset.o); render(); });
+  app.querySelectorAll('[data-star]').forEach(b => b.onclick = () => { const h = active(); const k = b.dataset.rk; const n = Number(b.dataset.star); h.answers[k] = h.answers[k] === n ? 0 : n; save(); render(); });
+  app.querySelectorAll('[data-fix]').forEach(b => b.onclick = () => { setActiveHotel(b.dataset.fix); go(b.dataset.to); });
+  app.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { const t = trip(); const hh = t.hotels.find(z => z.id === b.dataset.remove); if (hh.notes.length && !confirm('Hotel má poznámky. Naozaj odobrať aj s nimi?')) return; if (!hh.notes.length && !confirm('Odobrať hotel zo zoznamu?')) return; t.hotels = t.hotels.filter(z => z.id !== hh.id); if (S.activeHotelId === hh.id) S.activeHotelId = null; save(); render(); });
+  app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editHotel(b.dataset.edit));
+  app.querySelectorAll('[data-opentrip]').forEach(b => b.onclick = () => { S.activeTripId = b.dataset.opentrip; S.activeHotelId = null; save(); go('trip'); });
+  const search = app.querySelector('#search'); if (search) { search.oninput = () => { S._search = search.value; const list = app.querySelector('.screen'); const pos = search.selectionStart; render(); const s2 = document.getElementById('search'); s2.focus(); s2.setSelectionRange(pos, pos); }; }
+  const draft = app.querySelector('#draft'); if (draft) { draft.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); act('addnote', app.querySelector('[data-act="addnote"]')); } }; }
+  const nh = app.querySelector('#newhotel'); if (nh) { nh.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); act('addhotel'); } }; nh.oninput = () => { S._newhotel = nh.value; const pos = nh.selectionStart; render(); const n2 = document.getElementById('newhotel'); if (n2) { n2.focus(); n2.setSelectionRange(pos, pos); } }; }
+  app.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => {
+    const c = CATALOG.find(z => z[0] === b.dataset.cat); if (!c) return;
+    const hh = addHotel(c[1], c[2], { cesysId: c[0], country: c[3] });
+    if (b.dataset.ctx === 'switch') { setActiveHotel(hh.id); S._search = ''; toast('Som v hoteli ' + hh.name); go('hotel'); }
+    else { S._newhotel = ''; toast('Pridané: ' + hh.name); render(); const n2 = document.getElementById('newhotel'); if (n2) n2.focus(); }
+  });
+}
+function act(a, b) {
+  const t = trip(); const h = active();
+  switch (a) {
+    case 'switch': S._search = ''; go('switch'); break;
+    case 'hotel': go('hotel'); break;
+    case 'checklist': go('checklist'); break;
+    case 'guide': S.guideStep = 0; go('guide'); break;
+    case 'gback': S.guideStep = Math.max(0, S.guideStep - 1); go('guide'); break;
+    case 'gnext': if (S.guideStep >= GUIDE.length - 1) { S.guideStep = 0; toast('Hotel ' + h.name + ' prejdený krok za krokom'); go('hotel'); } else { S.guideStep++; go('guide'); } break;
+    case 'rec': toggleRecord(b && b.dataset.topic); break;
+    case 'addnote': { const el = document.getElementById('draft'); const text = (el.value || '').trim(); if (!text) return; addNote(text, b && b.dataset.topic); render(); const el2 = document.getElementById('draft'); if (el2) el2.focus(); break; }
+    case 'create': { const name = (S._search || '').trim(); if (!name) return; const hh = addHotel(name); setActiveHotel(hh.id); S._search = ''; toast('Nový hotel založený: ' + hh.name); go('hotel'); break; }
+    case 'addhotel': { const el = document.getElementById('newhotel'); const name = (el.value || '').trim(); if (!name) return; addHotel(name); S._newhotel = ''; render(); document.getElementById('newhotel').focus(); break; }
+    case 'newtrip': { const name = (document.getElementById('tname').value || '').trim(); if (!name) { toast('Zadajte názov cesty'); return; } const dates = document.getElementById('tdates').value.trim(); S.author = document.getElementById('tauthor').value.trim(); const tt = { id: uid(), name, dates, hotels: [], created: nowIso() }; S.trips.push(tt); S.activeTripId = tt.id; S.activeHotelId = null; save(); go('trip'); break; }
+    case 'closetrip': if (confirm('Uzavrieť cestu „' + t.name + '“? Dáta ostanú uložené, budete môcť založiť novú cestu.')) { const prev = active(); if (prev && prev.activations.length) { const l = prev.activations[prev.activations.length - 1]; if (!l.end) l.end = nowIso(); } S.activeTripId = null; S.activeHotelId = null; save(); go('trip'); } break;
+    case 'export': exportTrip(true); break;
+    case 'exportlite': exportTrip(false); break;
+  }
+}
+function editHotel(id) {
+  const hh = hotels().find(z => z.id === id); if (!hh) return;
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = '<div class="sheet"><h3>' + esc(hh.name) + '</h3><div class="field"><label>Názov</label><input id="e-name" value="' + esc(hh.name) + '"></div><div class="field"><label>Miesto / letovisko</label><input id="e-place" value="' + esc(hh.place || '') + '" placeholder="napr. Kolymbia"></div><div class="field"><label>Kategória</label><input id="e-stars" value="' + esc(hh.stars || '') + '" placeholder="napr. 4★"></div><div class="row"><button class="btn w grow" id="e-cancel">Zrušiť</button><button class="btn k grow" id="e-save">Uložiť</button></div></div>';
+  document.body.appendChild(m);
+  m.querySelector('#e-cancel').onclick = () => m.remove();
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  m.querySelector('#e-save').onclick = () => { hh.name = m.querySelector('#e-name').value.trim() || hh.name; hh.place = m.querySelector('#e-place').value.trim(); hh.stars = m.querySelector('#e-stars').value.trim(); save(); m.remove(); render(); };
+}
+
+// ---------- Štart ----------
+if (!trip()) S.screen = 'trip';
+render();
+loadCatalog().then(() => { if (S.screen === 'switch' || S.screen === 'trip') render(); });
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+window.addEventListener('beforeunload', () => { const h = active(); /* aktivácia ostáva otvorená – appka pokračuje po otvorení */ });
+</script>
+</body>
+</html>
