@@ -23,7 +23,7 @@
   .hdr { background:var(--k); color:#fff; padding: calc(env(safe-area-inset-top) + 14px) 18px 14px; display:flex; flex-direction:column; gap:12px; flex-shrink:0; }
   .brand { display:flex; justify-content:space-between; align-items:center; }
   .logo { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:.12em; font-size:14px; }
-  .logo .sq { width:26px; height:26px; background:var(--y); border-radius:6px; display:flex; align-items:center; justify-content:center; }
+  .logo .lg { height:30px; width:auto; display:block; }
   .brand .trip { font-size:12px; font-weight:600; color:#b8b8b4; max-width:55%; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .active-btn { display:flex; justify-content:space-between; align-items:center; gap:12px; background:#262626; border:1px solid #3a3a3a; border-radius:14px; padding:12px 14px; color:#fff; text-align:left; width:100%; }
   .active-btn .lbl { font-size:11px; font-weight:600; color:var(--y); letter-spacing:.08em; }
@@ -343,7 +343,7 @@ function render() {
   const s = S.screen;
   const showHotel = h && (s === 'hotel' || s === 'checklist' || s === 'guide');
   const titles = { switch: 'V ktorom hoteli som?', day: 'Prehľad dňa', trip: t ? 'Moja infocesta' : 'Infocesty' };
-  let html = '<div class="hdr"><div class="brand"><div class="logo"><div class="sq">' + ICON.logo + '</div>PRIMATOUR</div><div class="trip">' + esc(t ? t.name : 'terénny zápisník') + '</div></div>';
+  let html = '<div class="hdr"><div class="brand"><div class="logo"><img src="logo.svg" alt="Primatour" class="lg"></div><div class="trip">' + esc(t ? t.name : 'terénny zápisník') + '</div></div>';
   if (showHotel) {
     html += '<button class="active-btn" data-act="switch"><div style="min-width:0"><div class="lbl">SOM V HOTELI</div><div class="name">' + esc(h.name) + '</div><div class="sub">' + esc([h.place, h.stars].filter(Boolean).join(' · ') || 'doplňte miesto v zozname hotelov') + '</div></div><div class="sw">Prepnúť ' + ICON.swap + '</div></button>';
   } else {
