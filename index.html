@@ -150,6 +150,8 @@ const GUIDE = [
   { key:'okolie', title:'Okolie a aktivity', hint:'Čo klient robí mimo pláže.', rating:null, questions:['okolie','anim','letisko'], topic:'okolie', ph:'napr. „taverny 10 min pešo“' },
   { key:'zaver', title:'Záver', hint:'Komu hotel odporučiť a na čo upozorniť.', rating:'r_celkovo', ratingLabel:'Celkový dojem', questions:['prekoho','odporucit'], topic:'upozornenie', ph:'upozornenie pre klienta, napr. „hluk z baru do 23:00“' },
 ];
+const KINDS = { hotel:'hotel', mesto:'mesto / letovisko', destinacia:'destinácia / oblasť', krajina:'krajina', vylet:'výlet / atrakcia', ine:'iné' };
+const isPlace = h => h && h.kind && h.kind !== 'hotel';
 const TOPICS = ['bod','izby','pláž','jedlo','areál','okolie','manažér','upozornenie'];
 const TOPIC_COLOR = { izby:'#151515', 'pláž':'#2e7fb8', jedlo:'#c2410c', 'areál':'#2e8b57', okolie:'#7c3aed', 'manažér':'#b07f00', upozornenie:'#d11f2f', hlas:'#fab70f' };
 
@@ -235,7 +237,7 @@ function setActiveHotel(id) {
 }
 function addHotel(name, place, extra) {
   const t = trip(); if (!t) return null;
-  const h = { id: uid(), name: name.trim(), place: (place || '').trim(), stars: '', visited: false, notes: [], answers: {}, activations: [], created: nowIso(), cesysId: extra && extra.cesysId || null, country: extra && extra.country || '' };
+  const h = { id: uid(), name: name.trim(), place: (place || '').trim(), stars: '', visited: false, notes: [], answers: {}, activations: [], created: nowIso(), cesysId: extra && extra.cesysId || null, country: extra && extra.country || '', kind: extra && extra.kind || 'hotel' };
   t.hotels.push(h); save(); return h;
 }
 function addNote(text, topic, audioId) {
@@ -286,7 +288,7 @@ function buildTextReport(t) {
   L.push('');
   for (const h of t.hotels) {
     L.push('==============================');
-    L.push(h.name + (h.stars ? ' ' + h.stars : '') + (h.place ? ' · ' + h.place : '') + (h.country ? ' · ' + h.country : '') + (h.cesysId ? ' · kód Cesys ' + h.cesysId : '') + (h.visited ? '' : ' · (nenavštívený)'));
+    L.push((isPlace(h) ? '[' + (KINDS[h.kind] || 'miesto').toUpperCase() + '] ' : '') + h.name + (h.stars ? ' ' + h.stars : '') + (h.place ? ' · ' + h.place : '') + (h.country ? ' · ' + h.country : '') + (h.cesysId ? ' · kód Cesys ' + h.cesysId : '') + (h.visited ? '' : ' · (nenavštívený)'));
     L.push('==============================');
     if (h.activations && h.activations.length) L.push('Časy v hoteli: ' + h.activations.map(a => hhmm(a.start) + '–' + (a.end ? hhmm(a.end) : '…') + ' (' + dmy(a.start) + ')').join(', '));
     const r = ['r_dojem','r_izby','r_plaz','r_jedlo','r_celkovo'].filter(k => h.answers[k]).map(k => ({ r_dojem:'Prvý dojem', r_izby:'Izby', r_plaz:'Pláž', r_jedlo:'Jedlo', r_celkovo:'Celkovo' }[k]) + ' ' + h.answers[k] + '/5');
@@ -340,12 +342,13 @@ function render() {
   const t = trip(); const h = active();
   const scr = t ? S.screen : 'trip';
   if (scr !== 'trip' && !h && scr !== 'switch') { S.screen = 'switch'; }
-  const s = S.screen;
+  let s = S.screen;
+  if (h && isPlace(h) && (s === 'checklist' || s === 'guide')) s = S.screen = 'hotel';
   const showHotel = h && (s === 'hotel' || s === 'checklist' || s === 'guide');
   const titles = { switch: 'V ktorom hoteli som?', day: 'Prehľad dňa', trip: t ? 'Moja infocesta' : 'Infocesty' };
   let html = '<div class="hdr"><div class="brand"><div class="logo"><img src="logo.svg" alt="Primatour" class="lg"></div><div class="trip">' + esc(t ? t.name : 'terénny zápisník') + '</div></div>';
   if (showHotel) {
-    html += '<button class="active-btn" data-act="switch"><div style="min-width:0"><div class="lbl">SOM V HOTELI</div><div class="name">' + esc(h.name) + '</div><div class="sub">' + esc([h.place, h.stars].filter(Boolean).join(' · ') || 'doplňte miesto v zozname hotelov') + '</div></div><div class="sw">Prepnúť ' + ICON.swap + '</div></button>';
+    html += '<button class="active-btn" data-act="switch"><div style="min-width:0"><div class="lbl">' + (isPlace(h) ? 'ZAPISUJEM K: ' + esc(KINDS[h.kind] || 'miesto').toUpperCase() : 'SOM V HOTELI') + '</div><div class="name">' + esc(h.name) + '</div><div class="sub">' + esc([h.place, h.stars].filter(Boolean).join(' · ') || (isPlace(h) ? 'poznámky mimo hotela' : 'doplňte miesto v zozname hotelov')) + '</div></div><div class="sw">Prepnúť ' + ICON.swap + '</div></button>';
   } else {
     html += '<div class="title">' + esc(titles[s] || '') + '</div>';
   }
@@ -362,36 +365,45 @@ function rHotel(t, h) {
   const a = answeredCount(h);
   let x = '<div class="screen">';
   x += '<div class="row"><button class="btn grow ' + (rec ? 'rec' : 'y') + '" data-act="rec">' + ICON.mic + '<span>' + recLabel() + '</span></button>';
-  x += '<button class="btn w" style="width:88px;flex-direction:column;gap:2px;font-size:11px" data-act="checklist">' + ICON.check + 'Checklist ' + a + '/' + QUESTIONS.length + '</button></div>';
-  x += '<div class="inputrow"><input id="draft" placeholder="+ bod, napr. „pláž štrk, cez cestu“" autocomplete="off" enterkeyhint="done"><button class="add" data-act="addnote">Pridať</button></div>';
-  x += '<div class="sect-row"><div class="sect">BODY K TOMUTO HOTELU</div><div class="muted">' + pl(notes.length, 'bod', 'body', 'bodov') + '</div></div>';
-  if (!notes.length) x += '<div class="empty">Zatiaľ nič. Napíšte prvý bod alebo stlačte Nahrať. Pevné otázky (typ pláže, ležadlá, animácie…) sú v Checkliste.</div>';
+  x += (isPlace(h) ? '</div>' : '<button class="btn w" style="width:88px;flex-direction:column;gap:2px;font-size:11px" data-act="checklist">' + ICON.check + 'Checklist ' + a + '/' + QUESTIONS.length + '</button></div>');
+  x += '<div class="inputrow"><input id="draft" placeholder="' + (isPlace(h) ? '+ poznámka, napr. „promenáda, taverny, trh v sobotu“' : '+ bod, napr. „pláž štrk, cez cestu“') + '" autocomplete="off" enterkeyhint="done"><button class="add" data-act="addnote">Pridať</button></div>';
+  x += '<div class="sect-row"><div class="sect">' + (isPlace(h) ? 'POZNÁMKY K TOMUTO MIESTU' : 'BODY K TOMUTO HOTELU') + '</div><div class="muted">' + pl(notes.length, 'bod', 'body', 'bodov') + '</div></div>';
+  if (!notes.length) x += '<div class="empty">' + (isPlace(h) ? 'Zatiaľ nič. Čo by mal klient vedieť o tomto mieste – centrum, pláže, ceny, doprava, atmosféra, výlety…' : 'Zatiaľ nič. Napíšte prvý bod alebo stlačte Nahrať. Pevné otázky (typ pláže, ležadlá, animácie…) sú v Checkliste.') + '</div>';
   for (const n of notes) {
     x += '<div class="note"><div class="dot" style="background:' + (TOPIC_COLOR[n.topic] || '#9a9a96') + '"></div><div class="txt"><div class="t">' + esc(n.text) + '</div><div class="m">' + hhmm(n.ts) + ' · ' + (n.audioId ? 'hlasová poznámka' : 'bod') + '</div>' + (n.audioId ? '<div id="au-' + n.id + '"></div>' : '') + '</div>';
     x += (n.audioId ? '<button class="icon-btn" data-play="' + n.id + '" title="Prehrať">' + ICON.play + '</button>' : '<button class="tag" data-cycle="' + n.id + '">' + esc(n.topic) + '</button>');
     x += '<button class="icon-btn" data-del="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
   }
-  x += '<div class="card" style="flex-direction:row;align-items:center;gap:10px;margin-top:4px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#696f6f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><div><div style="font-size:13px;font-weight:700">Foťte bežným fotoaparátom</div><div class="muted">časy v hoteli sa ukladajú – fotky spárujeme podľa nich</div></div></div>';
-  x += '<button class="btn o" data-act="guide">' + ICON.arrow + 'Prejsť hotel krok za krokom</button>';
+  x += '<div class="card" style="flex-direction:row;align-items:center;gap:10px;margin-top:4px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#696f6f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><div><div style="font-size:13px;font-weight:700">Foťte bežným fotoaparátom</div><div class="muted">' + (isPlace(h) ? 'časy sa ukladajú – fotky z mesta či výletu sa spárujú k tomuto miestu' : 'časy v hoteli sa ukladajú – fotky spárujeme podľa nich') + '</div></div></div>';
+  if (!isPlace(h)) x += '<button class="btn o" data-act="guide">' + ICON.arrow + 'Prejsť hotel krok za krokom</button>';
   x += '</div>';
   return x;
 }
 
 function rSwitch(t, h) {
   const q = (S._search || '').trim().toLowerCase();
-  const list = hotels().filter(x => !q || x.name.toLowerCase().includes(q) || (x.place || '').toLowerCase().includes(q));
+  const all = hotels().filter(x => !q || x.name.toLowerCase().includes(q) || (x.place || '').toLowerCase().includes(q));
+  const list = all.filter(x => !isPlace(x)); const places = all.filter(isPlace);
   const canCreate = q.length >= 2 && !hotels().some(x => x.name.toLowerCase() === q);
   let x = '<div class="screen">';
-  x += '<div class="inputrow" style="padding-left:12px">' + ICON.search + '<input id="search" placeholder="Hľadať hotel alebo napísať nový" autocomplete="off" value="' + esc(S._search || '') + '"></div>';
+  x += '<div class="inputrow" style="padding-left:12px">' + ICON.search + '<input id="search" placeholder="Hotel, mesto, destinácia…" autocomplete="off" value="' + esc(S._search || '') + '"></div>';
   if (list.length) x += '<div class="sect">HOTELY NA TEJTO CESTE</div>';
-  if (!list.length && !q) x += '<div class="empty">Zoznam je prázdny. Napíšte názov hotela hore – appka ponúkne hotely z ponuky Cesys.</div>';
+  if (!all.length && !q) x += '<div class="empty">Zoznam je prázdny. Napíšte názov hotela hore – appka ponúkne hotely z ponuky Cesys. Napísať sa dá aj mesto, destinácia alebo krajina – poznámky mimo hotela.</div>';
   for (const hh of list) {
     const isA = h && hh.id === h.id; const n = hh.notes.length;
     x += '<button class="hotelrow ' + (isA ? 'act' : '') + '" data-pick="' + hh.id + '"><div class="dot" style="background:' + (isA ? '#fab70f' : hh.visited ? '#2e8b57' : '#d4d4d0') + '"></div><div class="c"><div class="n">' + esc(hh.name) + '</div><div class="s">' + esc([hh.place, hh.stars].filter(Boolean).join(' · ')) + (hh.place || hh.stars ? ' · ' : '') + (hh.visited ? pl(n, 'bod', 'body', 'bodov') : 'nenavštívený') + '</div></div><div class="tg" style="color:' + (isA ? '#b07f00' : '#696f6f') + '">' + (isA ? 'AKTÍVNY' : hh.visited ? 'navštívený' : '') + '</div></button>';
   }
+  if (places.length) x += '<div class="sect">MIESTA (MIMO HOTELOV)</div>';
+  for (const pp of places) {
+    const isA = h && pp.id === h.id; const n = pp.notes.length;
+    x += '<button class="hotelrow ' + (isA ? 'act' : '') + '" data-pick="' + pp.id + '"><div class="dot" style="background:' + (isA ? '#fab70f' : '#7c3aed') + '"></div><div class="c"><div class="n">' + esc(pp.name) + '</div><div class="s">' + esc(KINDS[pp.kind] || 'miesto') + ' · ' + pl(n, 'poznámka', 'poznámky', 'poznámok') + '</div></div><div class="tg" style="color:' + (isA ? '#b07f00' : '#696f6f') + '">' + (isA ? 'AKTÍVNE' : '') + '</div></button>';
+  }
   x += suggestHtml(S._search, 'switch');
-  if (canCreate) x += '<button class="btn k" data-act="create">' + ICON.plus + 'Pridať nový hotel „' + esc(S._search.trim()) + '“ (nie je v ponuke)</button>';
-  x += '<div class="hint">Začnite písať názov – appka ponúkne hotely z ponuky Cesys aj s letoviskom. Ak hotel v ponuke nie je, stačí ho pomenovať.</div></div>';
+  if (canCreate) {
+    x += '<button class="btn k" data-act="create">' + ICON.plus + 'Pridať nový hotel „' + esc(S._search.trim()) + '“ (nie je v ponuke)</button>';
+    x += '<div class="sect">ALEBO AKO MIESTO MIMO HOTELA</div><div class="chips">' + Object.keys(KINDS).filter(k => k !== 'hotel').map(k => '<button class="chip" data-createplace="' + k + '">' + esc(KINDS[k]) + '</button>').join('') + '</div>';
+  }
+  x += '<div class="hint">Začnite písať názov – appka ponúkne hotely z ponuky Cesys aj s letoviskom. Ak hotel v ponuke nie je, stačí ho pomenovať. Mesto, destináciu či krajinu pridáte rovnako – napíšte názov a ťuknite na typ.</div></div>';
   return x;
 }
 
@@ -449,8 +461,8 @@ function rDay(t, h) {
   x += '<div class="sect" style="padding-top:4px">ČO EŠTE DOPLNIŤ</div>';
   if (!visited.length) x += '<div class="empty">Dnes ste zatiaľ neboli v žiadnom hoteli. Prepnite hotel v záložke Hotel.</div>';
   for (const hh of visited) {
-    const a = answeredCount(hh); const needs = a < QUESTIONS.length || hh.notes.length === 0;
-    x += '<div class="hotelrow"><div class="dot" style="background:' + (needs ? '#fab70f' : '#2e8b57') + '"></div><div class="c"><div class="n">' + esc(hh.name) + '</div><div class="s">' + pl(hh.notes.length, 'bod', 'body', 'bodov') + ' · checklist ' + a + '/' + QUESTIONS.length + '</div></div>' + (needs ? '<button class="sw" style="background:#fab70f;border:none;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700" data-fix="' + hh.id + '" data-to="' + (hh.notes.length === 0 ? 'hotel' : 'checklist') + '">' + (hh.notes.length === 0 ? 'Doplniť body' : 'Dokončiť checklist') + '</button>' : ICON.ok) + '</div>';
+    const a = answeredCount(hh); const needs = isPlace(hh) ? hh.notes.length === 0 : (a < QUESTIONS.length || hh.notes.length === 0);
+    x += '<div class="hotelrow"><div class="dot" style="background:' + (needs ? '#fab70f' : '#2e8b57') + '"></div><div class="c"><div class="n">' + esc(hh.name) + '</div><div class="s">' + (isPlace(hh) ? esc(KINDS[hh.kind] || 'miesto') + ' · ' + pl(hh.notes.length, 'poznámka', 'poznámky', 'poznámok') : pl(hh.notes.length, 'bod', 'body', 'bodov') + ' · checklist ' + a + '/' + QUESTIONS.length) + '</div></div>' + (needs ? '<button class="sw" style="background:#fab70f;border:none;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700" data-fix="' + hh.id + '" data-to="' + (hh.notes.length === 0 ? 'hotel' : 'checklist') + '">' + (hh.notes.length === 0 ? 'Doplniť body' : 'Dokončiť checklist') + '</button>' : ICON.ok) + '</div>';
   }
   x += '<div class="warnbox"><div class="h">Fotky</div><div class="p">Foťte bežným fotoaparátom telefónu. Appka si pamätá, kedy ste boli v ktorom hoteli, takže fotky sa po návrate spárujú podľa času. Nič netreba triediť.</div></div>';
   x += '<div class="status"><div class="d"></div>Uložené v telefóne · funguje bez internetu</div></div>';
@@ -499,6 +511,7 @@ function bind(app) {
   const search = app.querySelector('#search'); if (search) { search.oninput = () => { S._search = search.value; const list = app.querySelector('.screen'); const pos = search.selectionStart; render(); const s2 = document.getElementById('search'); s2.focus(); s2.setSelectionRange(pos, pos); }; }
   const draft = app.querySelector('#draft'); if (draft) { draft.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); act('addnote', app.querySelector('[data-act="addnote"]')); } }; }
   const nh = app.querySelector('#newhotel'); if (nh) { nh.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); act('addhotel'); } }; nh.oninput = () => { S._newhotel = nh.value; const pos = nh.selectionStart; render(); const n2 = document.getElementById('newhotel'); if (n2) { n2.focus(); n2.setSelectionRange(pos, pos); } }; }
+  app.querySelectorAll('[data-createplace]').forEach(b => b.onclick = () => { const name = (S._search || '').trim(); if (!name) return; const hh = addHotel(name, '', { kind: b.dataset.createplace }); setActiveHotel(hh.id); S._search = ''; toast('Miesto založené: ' + hh.name); go('hotel'); });
   app.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => {
     const c = CATALOG.find(z => z[0] === b.dataset.cat); if (!c) return;
     const hh = addHotel(c[1], c[2], { cesysId: c[0], country: c[3] });
