@@ -131,6 +131,8 @@ const QUESTIONS = [
   { key:'rest', label:'Reštaurácia na pláži (jedlo v plavkách)', options:['áno, v cene','áno, za poplatok','nie'] },
   { key:'lezadla', label:'Ležadlá a slnečníky', options:['v cene','za poplatok','nie sú'] },
   { key:'anim', label:'Animácie', options:['deti','dospelí','oboje','nie'] },
+  { key:'poloha', label:'Poloha hotela', options:['v centre mesta','v letovisku','na okraji letoviska','na samote','v rezorte s inými hotelmi'] },
+  { key:'nakupy', label:'Nákupy v okolí', multi:true, options:['supermarket pri hoteli','obchody do 10 min pešo','len minimarket v hoteli','treba auto / bus','nič'] },
   { key:'okolie', label:'Čo robiť v okolí', multi:true, options:['centrum pešo','obchody','promenáda','výlety','nič, len hotel'] },
   { key:'bezlepok', label:'Bezlepková strava', options:['na požiadanie','označené v bufete','nie','spýtať manažéra'] },
   { key:'alacarte', label:'À la carte', options:['1× v cene','viackrát v cene','za poplatok','nie je'] },
@@ -147,7 +149,7 @@ const GUIDE = [
   { key:'izby', title:'Izby', hint:'Stav, veľkosť, kúpeľňa, hluk, výhľad. Odfoťte aj 0,5× záber.', rating:'r_izby', ratingLabel:'Izby celkovo', questions:['pristelka'], topic:'izby', ph:'napr. „izby staré, ale čisté“' },
   { key:'plaz', title:'Pláž', hint:'To, na čo sa klienti pýtajú najviac.', rating:'r_plaz', ratingLabel:'Pláž celkovo', questions:['plaz','plazchar','vzd','vstup','bar','rest','lezadla'], topic:'pláž', ph:'napr. „pláž široká, ležadlá ďaleko od mora“' },
   { key:'jedlo', title:'Jedlo', hint:'Bufet, à la carte, špeciálne stravovanie.', rating:'r_jedlo', ratingLabel:'Stravovanie', questions:['alacarte','bezlepok'], topic:'jedlo', ph:'napr. „bufet široký, dezerty slabšie“' },
-  { key:'okolie', title:'Okolie a aktivity', hint:'Čo klient robí mimo pláže.', rating:null, questions:['okolie','anim','letisko'], topic:'okolie', ph:'napr. „taverny 10 min pešo“' },
+  { key:'okolie', title:'Okolie a aktivity', hint:'Čo klient robí mimo pláže.', rating:null, questions:['poloha','nakupy','okolie','anim','letisko'], topic:'okolie', ph:'napr. „taverny 10 min pešo“' },
   { key:'zaver', title:'Záver', hint:'Komu hotel odporučiť a na čo upozorniť.', rating:'r_celkovo', ratingLabel:'Celkový dojem', questions:['prekoho','odporucit'], topic:'upozornenie', ph:'upozornenie pre klienta, napr. „hluk z baru do 23:00“' },
 ];
 const KINDS = { hotel:'hotel', mesto:'mesto / letovisko', destinacia:'destinácia / oblasť', krajina:'krajina', vylet:'výlet / atrakcia', ine:'iné' };
@@ -294,7 +296,8 @@ function buildTextReport(t) {
     const r = ['r_dojem','r_izby','r_plaz','r_jedlo','r_celkovo'].filter(k => h.answers[k]).map(k => ({ r_dojem:'Prvý dojem', r_izby:'Izby', r_plaz:'Pláž', r_jedlo:'Jedlo', r_celkovo:'Celkovo' }[k]) + ' ' + h.answers[k] + '/5');
     if (r.length) L.push('Hodnotenie: ' + r.join(' · '));
     const qa = ALLQ.filter(q => has(h, q.key));
-    if (qa.length) { L.push(''); L.push('CHECKLIST:'); qa.forEach(q => L.push('  ' + q.label + ': ' + answerText(h.answers[q.key]))); }
+    if (qa.length) { L.push(''); L.push('CHECKLIST:'); qa.forEach(q => L.push('  ' + q.label + ': ' + answerText(h.answers[q.key]) + (h.answers[q.key + '_pozn'] ? '  (' + h.answers[q.key + '_pozn'] + ')' : '')));
+      ALLQ.filter(q => !has(h, q.key) && h.answers[q.key + '_pozn']).forEach(q => L.push('  ' + q.label + ': – (' + h.answers[q.key + '_pozn'] + ')')); }
     if (h.notes.length) { L.push(''); L.push('POZNÁMKY:'); h.notes.forEach(n => L.push('  [' + hhmm(n.ts) + '] (' + n.topic + ') ' + n.text + (n.audioId ? '  → audio ' + n.audioId : ''))); }
     L.push('');
   }
@@ -416,7 +419,9 @@ function chipsHtml(h, q, ctx) {
   const chosen = h.answers[q.key]; const filled = has(h, q.key);
   let x = '<div class="card"><div class="q-head"><div class="l">' + esc(q.label) + (q.multi ? ' <span class="muted">(viac možností)</span>' : '') + '</div><div class="s ' + (filled ? 'ok' : '') + '">' + (filled ? 'vyplnené' : 'chýba') + '</div></div><div class="chips">';
   for (const o of q.options) { const sel = q.multi ? (Array.isArray(chosen) && chosen.includes(o)) : chosen === o; x += '<button class="chip ' + (sel ? 'on' : '') + '" data-q="' + q.key + '" data-o="' + esc(o) + '">' + esc(o) + '</button>'; }
-  return x + '</div></div>';
+  const nk = q.key + '_pozn'; const nv = h.answers[nk] || '';
+  x += '</div><div class="inputrow" style="margin-top:8px;min-height:40px"><input class="qnote" data-qn="' + q.key + '" placeholder="' + (q.key === 'poloha' ? 'napr. pri hoteli Mitsis, 300 m od prístavu' : 'poznámka k tejto otázke (nepovinné)') + '" autocomplete="off" enterkeyhint="done" value="' + esc(nv) + '"></div>';
+  return x + '</div>';
 }
 function pickAnswer(h, key, o) {
   const q = ALLQ.find(x => x.key === key); if (!q) return;
@@ -490,7 +495,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.2 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.6 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -503,6 +508,7 @@ function bind(app) {
   app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const h = active(); const n = h.notes.find(z => z.id === b.dataset.del); if (!n) return; if (!confirm('Zmazať tento bod?')) return; if (n.audioId) await audioDel(n.audioId); h.notes = h.notes.filter(z => z.id !== n.id); save(); render(); });
   app.querySelectorAll('[data-play]').forEach(b => b.onclick = async () => { const n = active().notes.find(z => z.id === b.dataset.play); const blob = await audioGet(n.audioId); if (!blob) { toast('Nahrávka sa nenašla'); return; } const host = document.getElementById('au-' + n.id); host.innerHTML = '<audio class="audio" controls autoplay src="' + URL.createObjectURL(blob) + '"></audio>'; });
   app.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { pickAnswer(active(), b.dataset.q, b.dataset.o); render(); });
+  app.querySelectorAll('.qnote').forEach(i => { const f = () => { const h = active(); if (!h) return; const k = i.dataset.qn + '_pozn'; const v = i.value.trim(); if (v) h.answers[k] = v; else delete h.answers[k]; save(); }; i.onchange = f; i.onblur = f; i.onkeydown = e => { if (e.key === 'Enter') { f(); i.blur(); } }; });
   app.querySelectorAll('[data-star]').forEach(b => b.onclick = () => { const h = active(); const k = b.dataset.rk; const n = Number(b.dataset.star); h.answers[k] = h.answers[k] === n ? 0 : n; save(); render(); });
   app.querySelectorAll('[data-fix]').forEach(b => b.onclick = () => { setActiveHotel(b.dataset.fix); go(b.dataset.to); });
   app.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { const t = trip(); const hh = t.hotels.find(z => z.id === b.dataset.remove); if (hh.notes.length && !confirm('Hotel má poznámky. Naozaj odobrať aj s nimi?')) return; if (!hh.notes.length && !confirm('Odobrať hotel zo zoznamu?')) return; t.hotels = t.hotels.filter(z => z.id !== hh.id); if (S.activeHotelId === hh.id) S.activeHotelId = null; save(); render(); });
@@ -552,7 +558,12 @@ function editHotel(id) {
 if (!trip()) S.screen = 'trip';
 render();
 loadCatalog().then(() => { if (S.screen === 'switch' || S.screen === 'trip') render(); });
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  let hadController = !!navigator.serviceWorker.controller;
+  const softReload = () => { const ae = document.activeElement; const typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && ae.value; if (typing || rec) { toast('Nová verzia zápisníka je pripravená – obnoví sa po dokončení'); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') location.reload(); }, { once: true }); return; } save(); toast('Aktualizujem zápisník…'); setTimeout(() => location.reload(), 600); };
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) softReload(); hadController = true; });
+  navigator.serviceWorker.register('sw.js').then(reg => { try { reg.update(); } catch (e) {} setInterval(() => { try { reg.update(); } catch (e) {} }, 60 * 1000); }).catch(() => {});
+}
 window.addEventListener('beforeunload', () => { const h = active(); /* aktivácia ostáva otvorená – appka pokračuje po otvorení */ });
 </script>
 </body>
