@@ -359,7 +359,9 @@ function render() {
   html += ({ hotel: rHotel, switch: rSwitch, checklist: rChecklist, guide: rGuide, day: rDay, trip: rTrip }[s] || rTrip)(t, h);
   html += '</div>';
   html += '<div class="nav">' + [['hotel','Hotel'],['checklist','Checklist'],['day','Deň'],['trip','Cesta']].map(([k, l]) => '<button data-nav="' + k + '" class="' + (s === k ? 'on' : '') + '"><div class="b"></div><div class="l">' + l + '</div></button>').join('') + '</div>';
+  const prevBody = app.querySelector('.body'); const keepScroll = prevBody && S._lastScreen === s ? prevBody.scrollTop : 0; S._lastScreen = s;
   app.innerHTML = html;
+  const nb = app.querySelector('.body'); if (nb && keepScroll) nb.scrollTop = keepScroll;
   bind(app);
 }
 
@@ -495,7 +497,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.6 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.7 · Primatour</div>';
   return x + '</div>';
 }
 
