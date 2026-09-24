@@ -68,6 +68,8 @@
   .q-head .l { font-size:14px; font-weight:700; }
   .q-head .s { font-size:11px; font-weight:700; color:#b8b8b4; }
   .q-head .s.ok { color:var(--ok); }
+  .q-head .src { font-size:11px; font-weight:700; color:var(--ok); background:#eef5ef; border:1px solid #cfe2d4; border-radius:999px; padding:3px 9px; white-space:nowrap; }
+  .q-head .src.alt { color:#b07f00; background:#fdf3d7; border-color:#f0dca6; }
   .bar { height:6px; background:var(--line); border-radius:999px; overflow:hidden; }
   .bar > div { height:6px; background:var(--y); border-radius:999px; }
   .hotelrow { display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; text-align:left; width:100%; }
@@ -152,6 +154,15 @@ const EXTRA = [
 const ALLQ = [...EXTRA, ...QUESTIONS];
 const Q_TOPIC = { plaz:'pláž', plazchar:'pláž', vzd:'pláž', vstup:'pláž', bar:'pláž', rest:'pláž', lezadla:'pláž', anim:'areál', poloha:'okolie', nakupy:'okolie', okolie:'okolie', letisko:'okolie', bezlepok:'jedlo', alacarte:'jedlo', pristelka:'izby', prekoho:'upozornenie', neodporucit:'upozornenie', predaj:'upozornenie' };
 function qNotes(h, key) { return (h.notes || []).filter(n => n.q === key); }
+// odkiaľ údaj je: „videné“ je predvolené a neukladá sa
+const SRC = ['videné', 'od manažéra', 'z katalógu'];
+function srcOf(h, key) { return (h.src && h.src[key]) || SRC[0]; }
+function cycleSrc(h, key) {
+  h.src = h.src || {};
+  const next = SRC[(SRC.indexOf(srcOf(h, key)) + 1) % SRC.length];
+  if (next === SRC[0]) delete h.src[key]; else h.src[key] = next;
+  save();
+}
 const GUIDE = [
   { key:'dojem', title:'Prvý dojem', hint:'Hneď pri vstupe – areál, recepcia, atmosféra. Jedna veta stačí.', rating:'r_dojem', ratingLabel:'Prvý dojem hotela', questions:[], topic:'areál', ph:'napr. „upravený areál, veľa zelene“' },
   { key:'izby', title:'Izby', hint:'Stav, veľkosť, kúpeľňa, hluk, výhľad. Odfoťte aj 0,5× záber.', rating:'r_izby', ratingLabel:'Izby celkovo', questions:['pristelka'], topic:'izby', ph:'napr. „izby staré, ale čisté“' },
@@ -347,7 +358,7 @@ function buildTextReport(t) {
     const r = ['r_dojem','r_izby','r_plaz','r_jedlo','r_celkovo'].filter(k => h.answers[k]).map(k => ({ r_dojem:'Prvý dojem', r_izby:'Izby', r_plaz:'Pláž', r_jedlo:'Jedlo', r_celkovo:'Celkovo' }[k]) + ' ' + h.answers[k] + '/5');
     if (r.length) L.push('Hodnotenie: ' + r.join(' · '));
     const qa = ALLQ.filter(q => has(h, q.key));
-    if (qa.length) { L.push(''); L.push('CHECKLIST:'); qa.forEach(q => L.push('  ' + q.label + ': ' + answerText(h.answers[q.key]) + (qNotes(h, q.key).length ? '  (' + qNotes(h, q.key).map(n => n.text).join('; ') + ')' : '')));
+    if (qa.length) { L.push(''); L.push('CHECKLIST:'); qa.forEach(q => L.push('  ' + q.label + ': ' + answerText(h.answers[q.key]) + (srcOf(h, q.key) !== SRC[0] ? ' [' + srcOf(h, q.key) + ']' : '') + (qNotes(h, q.key).length ? '  (' + qNotes(h, q.key).map(n => n.text).join('; ') + ')' : '')));
       ALLQ.filter(q => !has(h, q.key) && qNotes(h, q.key).length).forEach(q => L.push('  ' + q.label + ': – (' + qNotes(h, q.key).map(n => n.text).join('; ') + ')')); }
     if (h.notes.length) { L.push(''); L.push('POZNÁMKY:'); h.notes.forEach(n => L.push('  [' + hhmm(n.ts) + '] (' + n.topic + (n.q ? ' · ' + labelOf(n.q) : '') + ') ' + n.text + (n.audioId ? '  → audio ' + n.audioId : ''))); }
     L.push('');
@@ -477,7 +488,8 @@ function suggestHtml(q, ctx) {
 }
 function chipsHtml(h, q, ctx) {
   const chosen = h.answers[q.key]; const filled = has(h, q.key);
-  let x = '<div class="card"><div class="q-head"><div class="l">' + esc(q.label) + (q.multi ? ' <span class="muted">(viac možností)</span>' : '') + '</div><div class="s ' + (filled ? 'ok' : '') + '">' + (filled ? 'vyplnené' : 'chýba') + '</div></div><div class="chips">';
+  const st = filled ? '<button class="src' + (srcOf(h, q.key) === SRC[0] ? '' : ' alt') + '" data-src="' + q.key + '">' + esc(srcOf(h, q.key)) + '</button>' : '<div class="s">chýba</div>';
+  let x = '<div class="card"><div class="q-head"><div class="l">' + esc(q.label) + (q.multi ? ' <span class="muted">(viac možností)</span>' : '') + '</div>' + st + '</div><div class="chips">';
   for (const o of q.options) { const sel = q.multi ? (Array.isArray(chosen) && chosen.includes(o)) : chosen === o; x += '<button class="chip ' + (sel ? 'on' : '') + '" data-q="' + q.key + '" data-o="' + esc(o) + '">' + esc(o) + '</button>'; }
   x += '</div>';
   const qn = qNotes(h, q.key);
@@ -562,7 +574,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.11 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.12 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -576,6 +588,7 @@ function bind(app) {
   app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const h = active(); const n = h.notes.find(z => z.id === b.dataset.del); if (!n) return; if (!confirm('Zmazať tento bod?')) return; if (n.audioId) await audioDel(n.audioId); h.notes = h.notes.filter(z => z.id !== n.id); save(); render(); });
   app.querySelectorAll('[data-play]').forEach(b => b.onclick = async () => { const n = active().notes.find(z => z.id === b.dataset.play); const blob = await audioGet(n.audioId); if (!blob) { toast('Nahrávka sa nenašla'); return; } const host = document.getElementById('au-' + n.id); host.innerHTML = '<audio class="audio" controls autoplay src="' + URL.createObjectURL(blob) + '"></audio>'; });
   app.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { pickAnswer(active(), b.dataset.q, b.dataset.o); render(); });
+  app.querySelectorAll('[data-src]').forEach(b => b.onclick = () => { const h = active(); cycleSrc(h, b.dataset.src); toast('Odkiaľ údaj je: ' + srcOf(h, b.dataset.src)); render(); });
   const qadd = key => { const i = app.querySelector('.qnote[data-qn="' + key + '"]'); const h = active(); if (!i || !h) return; const v = i.value.trim(); if (!v) return; h.notes.push({ id: uid(), text: v, topic: Q_TOPIC[key] || 'bod', ts: nowIso(), audioId: null, q: key }); if (!h.visited) h.visited = true; save(); S._focusQ = key; render(); };
   app.querySelectorAll('.qnote').forEach(i => { i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); qadd(i.dataset.qn); } }; });
   app.querySelectorAll('[data-qadd]').forEach(b => b.onclick = () => qadd(b.dataset.qadd));
