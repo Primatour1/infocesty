@@ -266,9 +266,36 @@ function addHotel(name, place, extra) {
   const h = { id: uid(), name: name.trim(), place: (place || '').trim(), stars: '', visited: false, notes: [], answers: {}, activations: [], created: nowIso(), cesysId: extra && extra.cesysId || null, country: extra && extra.country || '', kind: extra && extra.kind || 'hotel' };
   t.hotels.push(h); save(); return h;
 }
+// --- automatické zaradenie bodu podľa textu -------------------------------
+const AT_RULES = {
+  izby: ['izb','kupeln','sprch','vanu','vana ','postel','pristelk','balkon','teras','minibar','trezor','safe','klimatiz','vyhlad','suit','apartman','family room','quadrup','tripl','swim up','poschod','vytah','chodb','nabytok','renovovan','rekonstru'],
+  plaz: ['plaz','more ','piesok','strk','muslic','lezadl','lehatk','slnecnik','rias','molo','odliv','vstup do vody','kamien','cabany','uterak'],
+  jedlo: ['jedl','strav','bufet','restaur','a la carte','alacarte','ranajk','obed','vecera','veceru','veceri','snack','drink','alkohol','pitie','bezlepk','bezlakt','chutn','kuchyn','all inclusive','napoj','seafood','menu','dezert','vino','piv','lounge'],
+  areal: ['areal','bazen','spa ','wellness','virivk','jacuz','tobogan','recepci','lobby','zahrad','animac','detsky klub','kids club','miniclub','ihrisk','golf','fitness','zelen','klub','joga','sipky'],
+  okolie: ['mesto','mesta','centrum','medin','obchod','supermarket','minimarket','letisk','taxik','autobus',' bus ','km ','peso','promenad','vylet','trh ','vzdialen','doprav','pristav','rezortovk'],
+  manazer: ['manazer','riaditel','delegat','povedal','hovori','vraj','sprievodc'],
+};
+const AT_PRIO = ['izby','plaz','jedlo','areal','okolie','manazer'];
+const AT_WARN = ['pozor','upozorn','nedopecen','smrad','zapach','plesniv','osarpan','spinav','hluk','nefunguje','neodporuc','vyhodnu cenu','problem','slaby','slabe','slabsi','za poplatok','fajci','nenaplnen','menej narocn','nie su','chyba'];
+const AT_OUT = { plaz:'pláž', areal:'areál', manazer:'manažér' };
+function atNorm(s) {
+  return ' ' + String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ') + ' ';
+}
+function autoTopic(text) {
+  const t = atNorm(text);
+  const cnt = k => AT_RULES[k].reduce((n, w) => n + t.split(w).length - 1, 0);
+  const sc = {}; AT_PRIO.forEach(k => sc[k] = cnt(k));
+  const warn = AT_WARN.filter(w => t.includes(w)).length;
+  const bv = Math.max(...AT_PRIO.map(k => sc[k]));
+  if (warn >= 2 || (warn >= 1 && bv === 0)) return 'upozornenie';
+  if (bv === 0) return 'bod';
+  if (warn >= 1 && bv <= 1) return 'upozornenie';
+  const b = AT_PRIO.find(k => sc[k] === bv);
+  return AT_OUT[b] || b;
+}
 function addNote(text, topic, audioId) {
   const h = active(); if (!h) return;
-  h.notes.push({ id: uid(), text, topic: topic || 'bod', ts: nowIso(), audioId: audioId || null });
+  h.notes.push({ id: uid(), text, topic: topic || (audioId ? 'hlas' : autoTopic(text)), ts: nowIso(), audioId: audioId || null });
   save();
 }
 
@@ -400,7 +427,7 @@ function rHotel(t, h) {
   x += '<div class="sect-row"><div class="sect">' + (isPlace(h) ? 'POZNÁMKY K TOMUTO MIESTU' : 'BODY K TOMUTO HOTELU') + '</div><div class="muted">' + pl(notes.length, 'bod', 'body', 'bodov') + '</div></div>';
   if (!notes.length) x += '<div class="empty">' + (isPlace(h) ? 'Zatiaľ nič. Čo by mal klient vedieť o tomto mieste – centrum, pláže, ceny, doprava, atmosféra, výlety…' : 'Zatiaľ nič. Napíšte prvý bod alebo stlačte Nahrať. Pevné otázky (typ pláže, ležadlá, animácie…) sú v Checkliste.') + '</div>';
   for (const n of notes) {
-    x += '<div class="note"><div class="dot" style="background:' + (TOPIC_COLOR[n.topic] || '#9a9a96') + '"></div><div class="txt"><div class="t">' + esc(n.text) + '</div><div class="m">' + hhmm(n.ts) + ' · ' + (n.audioId ? 'hlasová poznámka' : n.q ? 'k otázke: ' + esc(labelOf(n.q)) : 'bod') + '</div>' + (n.audioId ? '<div id="au-' + n.id + '"></div>' : '') + '</div>';
+    x += '<div class="note"><div class="dot" style="background:' + (TOPIC_COLOR[n.topic] || '#9a9a96') + '"></div><div class="txt"><div class="t">' + esc(n.text) + '</div><div class="m">' + hhmm(n.ts) + (n.audioId ? ' · hlasová poznámka' : n.q ? ' · k otázke: ' + esc(labelOf(n.q)) : '') + '</div>' + (n.audioId ? '<div id="au-' + n.id + '"></div>' : '') + '</div>';
     x += (n.audioId ? '<button class="icon-btn" data-play="' + n.id + '" title="Prehrať">' + ICON.play + '</button>' : '<button class="tag" data-cycle="' + n.id + '">' + esc(n.topic) + '</button>');
     x += '<button class="icon-btn" data-del="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
   }
@@ -535,7 +562,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.10 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.11 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -587,7 +614,7 @@ function act(a, b) {
     case 'gback': S.guideStep = Math.max(0, S.guideStep - 1); go('guide'); break;
     case 'gnext': if (S.guideStep >= GUIDE.length - 1) { S.guideStep = 0; toast('Hotel ' + h.name + ' prejdený krok za krokom'); go('hotel'); } else { S.guideStep++; go('guide'); } break;
     case 'rec': toggleRecord(b && b.dataset.topic); break;
-    case 'addnote': { const el = document.getElementById('draft'); const text = (el.value || '').trim(); if (!text) return; addNote(text, b && b.dataset.topic); render(); const el2 = document.getElementById('draft'); if (el2) el2.focus(); break; }
+    case 'addnote': { const el = document.getElementById('draft'); const text = (el.value || '').trim(); if (!text) return; addNote(text, b && b.dataset.topic); const nn = active().notes[active().notes.length - 1]; if (nn && nn.topic !== 'bod') toast('Zaradené ako „' + nn.topic + '“ – ťuknutím na štítok zmeníte'); render(); const el2 = document.getElementById('draft'); if (el2) el2.focus(); break; }
     case 'create': { const name = (S._search || '').trim(); if (!name) return; const hh = addHotel(name); setActiveHotel(hh.id); S._search = ''; toast('Nový hotel založený: ' + hh.name); go('hotel'); break; }
     case 'addhotel': { const el = document.getElementById('newhotel'); const name = (el.value || '').trim(); if (!name) return; addHotel(name); S._newhotel = ''; render(); document.getElementById('newhotel').focus(); break; }
     case 'newtrip': { const name = (document.getElementById('tname').value || '').trim(); if (!name) { toast('Zadajte názov cesty'); return; } const dates = document.getElementById('tdates').value.trim(); S.author = document.getElementById('tauthor').value.trim(); const tt = { id: uid(), name, dates, hotels: [], created: nowIso() }; S.trips.push(tt); S.activeTripId = tt.id; S.activeHotelId = null; save(); go('trip'); break; }
