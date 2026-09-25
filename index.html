@@ -239,10 +239,9 @@ async function pridajFotky(h, subory) {
   let ok = 0;
   for (const s of subory) {
     try {
-      if (!/^image\//.test(s.type)) throw new Error('nie je obrázok');
       const obr = await nacitajObrazok(s);
-      const velka = await zmensiObrazok(obr, 1600, 0.82), nahlad = await zmensiObrazok(obr, 420, 0.72);
-      const m = Math.min(1, 1600 / Math.max(obr.width, obr.height));
+      const velka = await zmensiObrazok(obr, 2048, 0.82), nahlad = await zmensiObrazok(obr, 420, 0.72);
+      const m = Math.min(1, 2048 / Math.max(obr.width, obr.height));
       const id = uid();
       await fotoPut(id, velka); await fotoPut(id + '-n', nahlad);
       if (obr.close) obr.close();
@@ -689,7 +688,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.14 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.15 · Primatour</div>';
   return x + '</div>';
 }
 
