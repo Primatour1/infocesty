@@ -345,6 +345,30 @@ function recLabel() { if (!rec) return 'Nahrať poznámku'; const s = Math.round
 function blobToBase64(blob) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); }); }
 function labelOf(key) { const q = ALLQ.find(x => x.key === key); return q ? q.label : key; }
 function answerText(v) { return Array.isArray(v) ? v.join(', ') : String(v); }
+function appUrl() {
+  let z = 'https://infocesty.sk';
+  try { z = localStorage.getItem('infocesty.appUrl') || z; } catch (e) {}
+  return z.replace(/\/+$/, '') + '/api/export';
+}
+async function poslatDoAppky() {
+  const t = trip(); if (!t) { toast('Najprv založte cestu'); return; }
+  if (!S.appKluc) { toast('Najprv zadajte kľúč k appke'); return; }
+  if (!navigator.onLine) { toast('Nie ste online – skúste neskôr'); return; }
+  toast('Odosielam…');
+  try {
+    const data = buildExport(t);
+    const r = await fetch(appUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Kluc': S.appKluc },
+      body: JSON.stringify(data)
+    });
+    const v = await r.json().catch(() => ({ sprava: 'Server odpovedal nezrozumiteľne.' }));
+    if (r.ok) { S.appPoslane = nowIso(); save(); render(); toast(v.sprava || 'Odoslané'); }
+    else { toast(v.sprava || ('Nepodarilo sa odoslať (' + r.status + ')')); }
+  } catch (err) {
+    toast('Odoslanie zlyhalo – skúste to znova, alebo použite export do súboru');
+  }
+}
 function buildTextReport(t) {
   const L = [];
   L.push('INFOCESTA: ' + t.name + (t.dates ? ' · ' + t.dates : '') + (S.author ? ' · ' + S.author : ''));
@@ -365,10 +389,13 @@ function buildTextReport(t) {
   }
   return L.join('\n');
 }
+function buildExport(t) {
+  return { app: 'infocesty-zapisnik', version: 1, exported: nowIso(), author: S.author, trip: { id: t.id, name: t.name, dates: t.dates, created: t.created }, hotels: t.hotels, audio: [] };
+}
 async function exportTrip(withAudio) {
   const t = trip(); if (!t) return;
   toast('Pripravujem export…');
-  const data = { app: 'infocesty-zapisnik', version: 1, exported: nowIso(), author: S.author, trip: { id: t.id, name: t.name, dates: t.dates, created: t.created }, hotels: t.hotels, audio: [] };
+  const data = buildExport(t);
   const files = [];
   const base = (t.name || 'infocesta').replace(/[^\w\-]+/g, '_');
   if (withAudio) {
@@ -570,11 +597,15 @@ function rTrip(t, h) {
   x += suggestHtml(S._newhotel, 'trip');
   x += '<div class="hint">Zoznam je len pomôcka. Program sa mení – hotely pridávate a odoberáte kedykoľvek.</div>';
   x += '<div class="sect" style="padding-top:8px">EXPORT A NASTAVENIA</div>';
-  x += '<button class="btn y" data-act="export">' + ICON.share + 'Odoslať / uložiť export (s nahrávkami)</button>';
+  x += '<button class="btn y" data-act="poslat">' + ICON.share + (S.appKluc ? 'Odoslať do appky' : 'Odoslať do appky (najprv kľúč)') + '</button>';
+  x += '<div class="small" style="text-align:center;padding:2px 0 10px">' + (S.appKluc ? 'Zápis poletí rovno do appky, netreba posielať súbory.' : 'Kľúč nájdete v appke v Nastaveniach. Stačí ho zadať raz.') + '</div>';
+  x += '<button class="btn w" data-act="kluc">' + (S.appKluc ? 'Zmeniť kľúč k appke' : 'Zadať kľúč k appke') + '</button>';
+  x += '<div class="sect" style="padding-top:14px">ZÁLOŽNE – SÚBORY</div>';
+  x += '<button class="btn w" data-act="export">' + ICON.share + 'Odoslať / uložiť export (s nahrávkami)</button>';
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.12 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.13 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -634,6 +665,12 @@ function act(a, b) {
     case 'closetrip': if (confirm('Uzavrieť cestu „' + t.name + '“? Dáta ostanú uložené, budete môcť založiť novú cestu.')) { const prev = active(); if (prev && prev.activations.length) { const l = prev.activations[prev.activations.length - 1]; if (!l.end) l.end = nowIso(); } S.activeTripId = null; S.activeHotelId = null; save(); go('trip'); } break;
     case 'export': exportTrip(true); break;
     case 'exportlite': exportTrip(false); break;
+    case 'kluc': {
+      const k = prompt('Kľúč k appke (nájdete ho v appke v Nastaveniach):', S.appKluc || '');
+      if (k !== null) { S.appKluc = k.trim(); save(); render(); toast(S.appKluc ? 'Kľúč uložený' : 'Kľúč vymazaný'); }
+      break;
+    }
+    case 'poslat': poslatDoAppky(); break;
   }
 }
 function editHotel(id) {
