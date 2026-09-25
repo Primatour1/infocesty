@@ -116,6 +116,11 @@
   .modal .sheet { background:var(--bg); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:18px 16px calc(env(safe-area-inset-bottom) + 18px); display:flex; flex-direction:column; gap:12px; max-height:85dvh; overflow-y:auto; }
   .modal .sheet h3 { margin:0; font-size:18px; font-weight:800; }
   .small { font-size:12px; color:var(--g); font-weight:500; line-height:1.5; }
+.fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fthumb{position:relative;border:0;padding:0;background:#e8e5de;border-radius:10px;aspect-ratio:1;overflow:hidden;cursor:pointer}
+.fthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.fthumb .st{position:absolute;right:5px;top:5px;background:rgba(255,255,255,.92);color:#151515;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;min-width:20px;height:20px}
+.fthumb.sent .st{background:#2e8b57;color:#fff}
 </style>
 </head>
 <body>
@@ -203,8 +208,8 @@ let dbp = null;
 function db() {
   if (dbp) return dbp;
   dbp = new Promise((res, rej) => {
-    const r = indexedDB.open('infocesty-audio', 1);
-    r.onupgradeneeded = () => { r.result.createObjectStore('audio'); };
+    const r = indexedDB.open('infocesty-audio', 2);
+    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('audio')) d.createObjectStore('audio'); if (!d.objectStoreNames.contains('foto')) d.createObjectStore('foto'); };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
   });
@@ -213,6 +218,72 @@ function db() {
 async function audioPut(id, blob) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('audio', 'readwrite'); t.objectStore('audio').put(blob, id); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
 async function audioGet(id) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('audio', 'readonly'); const q = t.objectStore('audio').get(id); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); }); }
 async function audioDel(id) { const d = await db(); return new Promise((res) => { const t = d.transaction('audio', 'readwrite'); t.objectStore('audio').delete(id); t.oncomplete = res; t.onerror = res; }); }
+// Fotky: zmenšené v prehliadači, uložené tu, kým sa nepošlú do appky. Originál ostáva v galérii telefónu.
+async function fotoPut(id, blob) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('foto', 'readwrite'); t.objectStore('foto').put(blob, id); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+async function fotoGet(id) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('foto', 'readonly'); const q = t.objectStore('foto').get(id); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); }); }
+async function fotoDel(id) { const d = await db(); return new Promise((res) => { const t = d.transaction('foto', 'readwrite'); const s = t.objectStore('foto'); s.delete(id); s.delete(id + '-n'); t.oncomplete = res; t.onerror = res; }); }
+const NAHLADY = {};  // id -> object URL, aby sa náhľady nevyrábali pri každom prekreslení
+async function nahladUrl(id) { if (NAHLADY[id]) return NAHLADY[id]; const b = await fotoGet(id + '-n'); if (!b) return ''; NAHLADY[id] = URL.createObjectURL(b); return NAHLADY[id]; }
+function zmensiObrazok(obr, max, kvalita) {
+  const m = Math.min(1, max / Math.max(obr.width, obr.height));
+  const p = document.createElement('canvas'); p.width = Math.round(obr.width * m); p.height = Math.round(obr.height * m);
+  const k = p.getContext('2d'); k.fillStyle = '#fff'; k.fillRect(0, 0, p.width, p.height); k.drawImage(obr, 0, 0, p.width, p.height);
+  return new Promise((res) => p.toBlob(res, 'image/jpeg', kvalita));
+}
+function nacitajObrazok(subor) {
+  const zaloha = () => new Promise((ok, zle) => { const i = new Image(), a = URL.createObjectURL(subor); i.onload = () => { URL.revokeObjectURL(a); ok(i); }; i.onerror = () => { URL.revokeObjectURL(a); zle(new Error('nedá sa otvoriť')); }; i.src = a; });
+  if (window.createImageBitmap) return createImageBitmap(subor, { imageOrientation: 'from-image' }).catch(zaloha);
+  return zaloha();
+}
+async function pridajFotky(h, subory) {
+  let ok = 0;
+  for (const s of subory) {
+    try {
+      if (!/^image\//.test(s.type)) throw new Error('nie je obrázok');
+      const obr = await nacitajObrazok(s);
+      const velka = await zmensiObrazok(obr, 1600, 0.82), nahlad = await zmensiObrazok(obr, 420, 0.72);
+      const m = Math.min(1, 1600 / Math.max(obr.width, obr.height));
+      const id = uid();
+      await fotoPut(id, velka); await fotoPut(id + '-n', nahlad);
+      if (obr.close) obr.close();
+      if (!h.fotky) h.fotky = [];
+      h.fotky.push({ id, nazov: s.name, nasnimane: s.lastModified ? new Date(s.lastModified).toISOString() : nowIso(), sirka: Math.round(obr.width * m), vyska: Math.round(obr.height * m), stav: 'caka', serverId: null });
+      ok++;
+    } catch (e) { toast((s.name || 'Fotka') + ': ' + e.message); }
+  }
+  save(); render();
+  if (ok) { toast(pl(ok, 'fotka pridaná', 'fotky pridané', 'fotiek pridaných')); poslatFotky(true); }
+}
+function cakajuceFotky() { const t = trip(); if (!t) return []; const out = []; for (const h of t.hotels) for (const f of (h.fotky || [])) if (f.stav !== 'odoslane') out.push([h, f]); return out; }
+let posielamFotky = false;
+async function poslatFotky(potichu) {
+  // Najprv musí byť v appke zápis (aby hotel existoval), potom idú fotky po jednej.
+  const t = trip(); if (!t || !S.appKluc || !navigator.onLine || posielamFotky) return;
+  const cak = cakajuceFotky(); if (!cak.length) return;
+  posielamFotky = true;
+  try {
+    const base = appUrl().replace(/\/api\/export$/, '');
+    const r0 = await fetch(base + '/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Kluc': S.appKluc }, body: JSON.stringify(buildExport(t)) });
+    if (!r0.ok) { if (!potichu) toast('Zápis sa nepodarilo odoslať, fotky počkajú'); return; }
+    let n = 0;
+    for (const [h, f] of cak) {
+      const velka = await fotoGet(f.id), nahlad = await fotoGet(f.id + '-n');
+      if (!velka || !nahlad) { f.stav = 'chyba'; continue; }
+      if (!potichu) toast('Posielam fotku ' + (n + 1) + ' z ' + cak.length + '…');
+      try {
+        const r = await fetch(base + '/api/foto', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Kluc': S.appKluc },
+          body: JSON.stringify({ externe_hotel: h.id, hotel_nazov: h.name, externe_id: f.id, nazov: f.nazov, nasnimane: f.nasnimane, sirka: f.sirka, vyska: f.vyska,
+            velka: 'data:image/jpeg;base64,' + await blobToBase64(velka), nahlad: 'data:image/jpeg;base64,' + await blobToBase64(nahlad) }) });
+        const v = await r.json().catch(() => ({}));
+        if (r.ok) { f.stav = 'odoslane'; f.serverId = v.id || null; await fotoDel(f.id); n++; save(); }
+        else { f.stav = 'caka'; if (!potichu) toast(v.sprava || 'Fotka neodišla'); if (r.status === 507) break; }
+      } catch (e) { f.stav = 'caka'; break; }
+    }
+    save(); render();
+    if (n && !potichu) toast(pl(n, 'fotka odoslaná', 'fotky odoslané', 'fotiek odoslaných'));
+  } finally { posielamFotky = false; }
+}
+window.addEventListener('online', () => setTimeout(() => poslatFotky(true), 1500));
 
 // ---------- Katalóg hotelov (Cesys) ----------
 let CATALOG = [];  // [kod, nazov, letovisko, krajina, typ]
@@ -363,7 +434,7 @@ async function poslatDoAppky() {
       body: JSON.stringify(data)
     });
     const v = await r.json().catch(() => ({ sprava: 'Server odpovedal nezrozumiteľne.' }));
-    if (r.ok) { S.appPoslane = nowIso(); save(); render(); toast(v.sprava || 'Odoslané'); }
+    if (r.ok) { S.appPoslane = nowIso(); save(); render(); toast(v.sprava || 'Odoslané'); if (cakajuceFotky().length) poslatFotky(false); }
     else { toast(v.sprava || ('Nepodarilo sa odoslať (' + r.status + ')')); }
   } catch (err) {
     toast('Odoslanie zlyhalo – skúste to znova, alebo použite export do súboru');
@@ -415,6 +486,8 @@ async function exportTrip(withAudio) {
 
 // ---------- Render ----------
 const ICON = {
+  foto: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>',
+  ok: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>',
   logo: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#151515" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M5 20l3-9 4 3 5-8 2 14"/></svg>',
   swap: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#151515" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>',
   mic: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>',
@@ -469,7 +542,18 @@ function rHotel(t, h) {
     x += (n.audioId ? '<button class="icon-btn" data-play="' + n.id + '" title="Prehrať">' + ICON.play + '</button>' : '<button class="tag" data-cycle="' + n.id + '">' + esc(n.topic) + '</button>');
     x += '<button class="icon-btn" data-del="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
   }
-  x += '<div class="card" style="flex-direction:row;align-items:center;gap:10px;margin-top:4px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#696f6f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><div><div style="font-size:13px;font-weight:700">Foťte bežným fotoaparátom</div><div class="muted">' + (isPlace(h) ? 'časy sa ukladajú – fotky z mesta či výletu sa spárujú k tomuto miestu' : 'časy v hoteli sa ukladajú – fotky spárujeme podľa nich') + '</div></div></div>';
+  const fotky = (h.fotky || []).slice().reverse();
+  const cakaju = fotky.filter(f => f.stav !== 'odoslane').length;
+  x += '<button class="btn y" style="width:100%;margin-top:6px" data-act="addfoto">' + ICON.foto + '<span>Pridať fotky</span></button>';
+  x += '<input type="file" id="fotoinput" accept="image/*" multiple style="display:none">';
+  x += '<div class="muted" style="padding:2px 2px 0">Z galérie telefónu alebo odfotiť teraz. Vyberáte vy – súkromné fotky sa nedotknú ničoho. Dá sa to spraviť aj neskôr v buse.</div>';
+  if (fotky.length) {
+    x += '<div class="sect-row"><div class="sect">FOTKY K TOMUTO ' + (isPlace(h) ? 'MIESTU' : 'HOTELU') + '</div><div class="muted">' + pl(fotky.length, 'fotka', 'fotky', 'fotiek') + (cakaju ? ' · ' + cakaju + ' čaká' : '') + '</div></div>';
+    x += '<div class="fgrid">';
+    for (const f of fotky) x += '<button class="fthumb' + (f.stav === 'odoslane' ? ' sent' : '') + '" data-delfoto="' + f.id + '" title="' + (f.stav === 'odoslane' ? 'Už je v appke' : 'Čaká na odoslanie') + '"><img data-nahlad="' + f.id + '" alt=""><span class="st">' + (f.stav === 'odoslane' ? ICON.ok : '…') + '</span></button>';
+    x += '</div>';
+    x += '<div class="card" style="flex-direction:row;align-items:flex-start;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:' + (cakaju ? '#d9a400' : '#2e8b57') + ';margin-top:6px;flex:none"></span><div class="muted" style="color:#151515">' + (cakaju ? (S.appKluc ? '<b>' + pl(cakaju, 'fotka čaká', 'fotky čakajú', 'fotiek čaká') + '</b> na odoslanie – odídu samy, keď bude internet.' : '<b>' + pl(cakaju, 'fotka čaká', 'fotky čakajú', 'fotiek čaká') + '.</b> Zadajte kľúč k appke na obrazovke Cesta, fotky potom odídu samy.') : '<b>Všetky fotky sú v appke.</b> Ďalej ich spracujete tam – výber, popis, web.') + '</div></div>';
+  }
   if (!isPlace(h)) x += '<button class="btn o" data-act="guide">' + ICON.arrow + 'Prejsť hotel krok za krokom</button>';
   x += '</div>';
   return x;
@@ -598,14 +682,14 @@ function rTrip(t, h) {
   x += '<div class="hint">Zoznam je len pomôcka. Program sa mení – hotely pridávate a odoberáte kedykoľvek.</div>';
   x += '<div class="sect" style="padding-top:8px">EXPORT A NASTAVENIA</div>';
   x += '<button class="btn y" data-act="poslat">' + ICON.share + (S.appKluc ? 'Odoslať do appky' : 'Odoslať do appky (najprv kľúč)') + '</button>';
-  x += '<div class="small" style="text-align:center;padding:2px 0 10px">' + (S.appKluc ? 'Zápis poletí rovno do appky, netreba posielať súbory.' : 'Kľúč nájdete v appke v Nastaveniach. Stačí ho zadať raz.') + '</div>';
+  x += '<div class="small" style="text-align:center;padding:2px 0 10px">' + (S.appKluc ? 'Zápis poletí rovno do appky, netreba posielať súbory.' + (cakajuceFotky().length ? ' Čaká ' + pl(cakajuceFotky().length, 'fotka', 'fotky', 'fotiek') + ' – odídu s ním.' : '') : 'Kľúč nájdete v appke v Nastaveniach. Stačí ho zadať raz.') + '</div>';
   x += '<button class="btn w" data-act="kluc">' + (S.appKluc ? 'Zmeniť kľúč k appke' : 'Zadať kľúč k appke') + '</button>';
   x += '<div class="sect" style="padding-top:14px">ZÁLOŽNE – SÚBORY</div>';
   x += '<button class="btn w" data-act="export">' + ICON.share + 'Odoslať / uložiť export (s nahrávkami)</button>';
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
-  x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže.</div>';
+  x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.13 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.14 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -616,6 +700,10 @@ function bind(app) {
   app.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
   app.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { setActiveHotel(b.dataset.pick); S._search = ''; toast((isTam() && !isPlace(active()) ? 'Som v hoteli ' : 'Upravujem ') + active().name); go('hotel'); });
   app.querySelectorAll('[data-cycle]').forEach(b => b.onclick = () => { const n = active().notes.find(z => z.id === b.dataset.cycle); if (!n) return; n.topic = TOPICS[(TOPICS.indexOf(n.topic) + 1) % TOPICS.length]; save(); render(); });
+  app.querySelectorAll('img[data-nahlad]').forEach(async (im) => { const u = await nahladUrl(im.dataset.nahlad); if (u) im.src = u; });
+  app.querySelectorAll('[data-delfoto]').forEach(b => b.onclick = async () => { const h = active(); const f = (h.fotky || []).find(z => z.id === b.dataset.delfoto); if (!f) return;
+    if (!confirm(f.stav === 'odoslane' ? 'Odstrániť fotku zo zápisníka? V appke ostane, tam ju prípadne zmažte.' : 'Zmazať túto fotku? Ešte nebola odoslaná.')) return;
+    await fotoDel(f.id); if (NAHLADY[f.id]) { URL.revokeObjectURL(NAHLADY[f.id]); delete NAHLADY[f.id]; } h.fotky = h.fotky.filter(z => z.id !== f.id); save(); render(); });
   app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const h = active(); const n = h.notes.find(z => z.id === b.dataset.del); if (!n) return; if (!confirm('Zmazať tento bod?')) return; if (n.audioId) await audioDel(n.audioId); h.notes = h.notes.filter(z => z.id !== n.id); save(); render(); });
   app.querySelectorAll('[data-play]').forEach(b => b.onclick = async () => { const n = active().notes.find(z => z.id === b.dataset.play); const blob = await audioGet(n.audioId); if (!blob) { toast('Nahrávka sa nenašla'); return; } const host = document.getElementById('au-' + n.id); host.innerHTML = '<audio class="audio" controls autoplay src="' + URL.createObjectURL(blob) + '"></audio>'; });
   app.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { pickAnswer(active(), b.dataset.q, b.dataset.o); render(); });
@@ -646,6 +734,7 @@ function act(a, b) {
     case 'switch': S._search = ''; go('switch'); break;
     case 'hotel': go('hotel'); break;
     case 'checklist': go('checklist'); break;
+    case 'addfoto': { const el = document.getElementById('fotoinput'); if (!el) return; el.onchange = () => { const hh = active(); if (hh && el.files && el.files.length) pridajFotky(hh, Array.prototype.slice.call(el.files)); el.value = ''; }; el.click(); break; }
     case 'endvisit': {
       if (!endVisit(h)) { toast('Návšteva už je ukončená'); render(); break; }
       save();
