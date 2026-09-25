@@ -135,21 +135,22 @@
 
 // ---------- Konfigurácia checklistu ----------
 const QUESTIONS = [
-  { key:'plaz', label:'Typ pláže', options:['piesok','štrk','kamienky','piesok+štrk','betónové platá'] },
-  { key:'plazchar', label:'Pláž – šírka a typ', multi:true, options:['široká','úzka','hotelová','verejná'] },
-  { key:'vzd', label:'Pláž od hotela', options:['pri hoteli','do 100 m','do 300 m','do 1 km','cez cestu','podchod'] },
-  { key:'vstup', label:'Vstup do vody', multi:true, options:['pozvoľný','prudký','treba obuv','cez mólo','odliv / plytko'] },
-  { key:'bar', label:'Bar na pláži (nápoje)', options:['áno, v cene','áno, za poplatok','pri pláži, nie na nej','nie'] },
-  { key:'rest', label:'Reštaurácia na pláži (jedlo v plavkách)', options:['áno, v cene','áno, za poplatok','pri pláži, nie na nej','nie'] },
-  { key:'lezadla', label:'Ležadlá a slnečníky', options:['v cene','za poplatok','nie sú'] },
-  { key:'anim', label:'Animácie', options:['deti','dospelí','oboje','nie'] },
-  { key:'poloha', label:'Poloha hotela', options:['v centre mesta','v letovisku','na okraji letoviska','na samote','v rezorte s inými hotelmi'] },
+  // Poradie = ako sa hotelom prechádza: príchod a okolie → izby → areál → jedlo → pláž na koniec.
+  { key:'poloha', sekcia:'Príchod a okolie', label:'Poloha hotela', options:['v centre mesta','v letovisku','na okraji letoviska','na samote','v rezorte s inými hotelmi'] },
+  { key:'letisko', label:'Vzdialenosť od letiska', options:['do 30 min','30–60 min','60–90 min','viac ako 90 min'] },
   { key:'nakupy', label:'Nákupy v okolí', multi:true, options:['supermarket pri hoteli','obchody do 10 min pešo','len minimarket v hoteli','treba auto / bus','nič'] },
   { key:'okolie', label:'Čo robiť v okolí', multi:true, options:['centrum pešo','obchody','promenáda','výlety','nič, len hotel'] },
-  { key:'bezlepok', label:'Bezlepková strava', options:['na požiadanie','označené v bufete','nie','spýtať manažéra'] },
+  { key:'pristelka', sekcia:'Izby', label:'Prístelka', options:['riadna posteľ','rozkladacie kreslo','pohovka','spýtať manažéra'] },
+  { key:'anim', sekcia:'Areál a program', label:'Animácie', options:['deti','dospelí','oboje','nie'] },
+  { key:'bezlepok', sekcia:'Jedlo', label:'Bezlepková strava', options:['na požiadanie','označené v bufete','nie','spýtať manažéra'] },
   { key:'alacarte', label:'À la carte', options:['1× v cene','viackrát v cene','za poplatok','nie je'] },
-  { key:'pristelka', label:'Prístelka', options:['riadna posteľ','rozkladacie kreslo','pohovka','spýtať manažéra'] },
-  { key:'letisko', label:'Vzdialenosť od letiska', options:['do 30 min','30–60 min','60–90 min','viac ako 90 min'] },
+  { key:'vzd', sekcia:'Pláž', label:'Pláž od hotela', options:['pri hoteli','do 100 m','do 300 m','do 1 km','cez cestu','podchod'] },
+  { key:'plaz', label:'Typ pláže', options:['piesok','štrk','kamienky','piesok+štrk','betónové platá'] },
+  { key:'plazchar', label:'Pláž – šírka a typ', multi:true, options:['široká','úzka','hotelová','verejná'] },
+  { key:'vstup', label:'Vstup do vody', multi:true, options:['pozvoľný','prudký','treba obuv','cez mólo','odliv / plytko'] },
+  { key:'lezadla', label:'Ležadlá a slnečníky', options:['v cene','za poplatok','nie sú'] },
+  { key:'bar', label:'Bar na pláži (nápoje)', options:['áno, v cene','áno, za poplatok','pri pláži, nie na nej','nie'] },
+  { key:'rest', label:'Reštaurácia na pláži (jedlo v plavkách)', options:['áno, v cene','áno, za poplatok','pri pláži, nie na nej','nie'] },
 ];
 const EXTRA = [
   { key:'prekoho', label:'Pre koho je hotel dobrý', multi:true, options:['rodiny s malými deťmi','rodiny so staršími deťmi','páry','seniori','mladí / partia','náročnejší klient','kto chce pokoj','kto chce program a animácie','kto chce mesto pešo','kto chce len rezort a pláž'] },
@@ -169,12 +170,12 @@ function cycleSrc(h, key) {
   save();
 }
 const GUIDE = [
-  { key:'dojem', title:'Prvý dojem', hint:'Hneď pri vstupe – areál, recepcia, atmosféra. Jedna veta stačí.', rating:'r_dojem', ratingLabel:'Prvý dojem hotela', questions:[], topic:'areál', ph:'napr. „upravený areál, veľa zelene“' },
+  { key:'dojem', title:'Príchod a prvý dojem', hint:'Lobby, recepcia, atmosféra. A čo ste videli po ceste – kde hotel stojí, čo je naokolo.', rating:'r_dojem', ratingLabel:'Prvý dojem hotela', questions:['poloha','letisko','nakupy','okolie'], topic:'areál', ph:'napr. „upravený areál, veľa zelene“' },
   { key:'izby', title:'Izby', hint:'Stav, veľkosť, kúpeľňa, hluk, výhľad. Odfoťte aj 0,5× záber.', rating:'r_izby', ratingLabel:'Izby celkovo', questions:['pristelka'], topic:'izby', ph:'napr. „izby staré, ale čisté“' },
-  { key:'plaz', title:'Pláž', hint:'To, na čo sa klienti pýtajú najviac.', rating:'r_plaz', ratingLabel:'Pláž celkovo', questions:['plaz','plazchar','vzd','vstup','bar','rest','lezadla'], topic:'pláž', ph:'napr. „pláž široká, ležadlá ďaleko od mora“' },
+  { key:'areal', title:'Areál a program', hint:'Bazény, animácie, detský kútik, večerný program.', rating:null, questions:['anim'], topic:'areál', ph:'napr. „dva bazény, jeden len pre dospelých“' },
   { key:'jedlo', title:'Jedlo', hint:'Bufet, à la carte, špeciálne stravovanie.', rating:'r_jedlo', ratingLabel:'Stravovanie', questions:['alacarte','bezlepok'], topic:'jedlo', ph:'napr. „bufet široký, dezerty slabšie“' },
-  { key:'okolie', title:'Okolie a aktivity', hint:'Čo klient robí mimo pláže.', rating:null, questions:['poloha','nakupy','okolie','anim','letisko'], topic:'okolie', ph:'napr. „taverny 10 min pešo“' },
-  { key:'zaver', title:'Záver', hint:'Komu hotel odporučiť a na čo upozorniť.', rating:'r_celkovo', ratingLabel:'Celkový dojem', questions:['prekoho','neodporucit','predaj'], topic:'upozornenie', ph:'upozornenie pre klienta, napr. „hluk z baru do 23:00“' },
+  { key:'plaz', title:'Pláž', hint:'To, na čo sa klienti pýtajú najviac. Nechajte si ju na koniec.', rating:'r_plaz', ratingLabel:'Pláž celkovo', questions:['vzd','plaz','plazchar','vstup','lezadla','bar','rest'], topic:'pláž', ph:'napr. „pláž široká, ležadlá ďaleko od mora“' },
+  { key:'zaver', title:'Záver', hint:'Teraz, keď ste hotel prešli: komu ho odporučiť a na čo upozorniť.', rating:'r_celkovo', ratingLabel:'Celkový dojem', questions:['prekoho','neodporucit','predaj'], topic:'upozornenie', ph:'upozornenie pre klienta, napr. „hluk z baru do 23:00“' },
 ];
 const KINDS = { hotel:'hotel', mesto:'mesto / letovisko', destinacia:'destinácia / oblasť', krajina:'krajina', vylet:'výlet / atrakcia', ine:'iné' };
 const isPlace = h => h && h.kind && h.kind !== 'hotel';
@@ -619,12 +620,16 @@ function rChecklist(t, h) {
   const a = answeredCount(h);
   const e = EXTRA.filter(q => has(h, q.key)).length;
   let x = '<div class="screen">';
-  x += '<div class="sect-row"><div class="sect">ZÁVER PRE PREDAJCU</div><div style="font-size:12px;font-weight:700;background:' + (e === EXTRA.length ? '#dff0e2' : '#fab70f') + ';border-radius:999px;padding:4px 10px">' + e + ' z ' + EXTRA.length + '</div></div>';
-  x += '<div class="small" style="padding:0 2px 8px">Tri otázky, ktoré predajca použije pri telefonáte najčastejšie. Vyplňte ich hneď, kým máte hotel pred očami.</div>';
-  for (const q of EXTRA) x += chipsHtml(h, q);
-  x += '<div class="sect-row" style="margin-top:14px"><div class="sect">OTÁZKY KLIENTOV</div><div style="font-size:12px;font-weight:700;background:#fab70f;border-radius:999px;padding:4px 10px">' + a + ' z ' + QUESTIONS.length + '</div></div>';
+  x += '<div class="sect-row"><div class="sect">OTÁZKY KLIENTOV</div><div style="font-size:12px;font-weight:700;background:#fab70f;border-radius:999px;padding:4px 10px">' + a + ' z ' + QUESTIONS.length + '</div></div>';
   x += '<div class="bar"><div style="width:' + Math.round(a / QUESTIONS.length * 100) + '%"></div></div>';
-  for (const q of QUESTIONS) x += chipsHtml(h, q);
+  x += '<div class="small" style="padding:0 2px 6px">V poradí, ako sa hotelom prechádza – pláž je na konci.</div>';
+  for (const q of QUESTIONS) {
+    if (q.sekcia) x += '<div class="sect" style="padding-top:10px;color:#151515">' + esc(q.sekcia).toUpperCase() + '</div>';
+    x += chipsHtml(h, q);
+  }
+  x += '<div class="sect-row" style="margin-top:16px"><div class="sect">ZÁVER PRE PREDAJCU</div><div style="font-size:12px;font-weight:700;background:' + (e === EXTRA.length ? '#dff0e2' : '#fab70f') + ';border-radius:999px;padding:4px 10px">' + e + ' z ' + EXTRA.length + '</div></div>';
+  x += '<div class="small" style="padding:0 2px 8px">Tri otázky, ktoré predajca použije pri telefonáte najčastejšie. Vyplňte ich, keď ste hotel prešli – kým ho máte v čerstvej pamäti.</div>';
+  for (const q of EXTRA) x += chipsHtml(h, q);
   x += '<button class="btn k" data-act="hotel">Hotovo, späť na poznámky</button></div>';
   return x;
 }
@@ -688,7 +693,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.15 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.16 · Primatour</div>';
   return x + '</div>';
 }
 
