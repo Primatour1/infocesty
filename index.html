@@ -434,7 +434,7 @@ async function poslatDoAppky() {
       body: JSON.stringify(data)
     });
     const v = await r.json().catch(() => ({ sprava: 'Server odpovedal nezrozumiteľne.' }));
-    if (r.ok) { S.appPoslane = nowIso(); save(); render(); toast(v.sprava || 'Odoslané'); if (cakajuceFotky().length) poslatFotky(false); }
+    if (r.ok) { S.appPoslane = nowIso(); if (v.cesta_id) S.appCestaId = v.cesta_id; save(); render(); toast(v.sprava || 'Odoslané'); if (cakajuceFotky().length) poslatFotky(false); }
     else { toast(v.sprava || ('Nepodarilo sa odoslať (' + r.status + ')')); }
   } catch (err) {
     toast('Odoslanie zlyhalo – skúste to znova, alebo použite export do súboru');
@@ -688,12 +688,19 @@ function rTrip(t, h) {
   x += '<button class="btn y" data-act="poslat">' + ICON.share + (S.appKluc ? 'Odoslať do appky' : 'Odoslať do appky (najprv kľúč)') + '</button>';
   x += '<div class="small" style="text-align:center;padding:2px 0 10px">' + (S.appKluc ? 'Zápis poletí rovno do appky, netreba posielať súbory.' + (cakajuceFotky().length ? ' Čaká ' + pl(cakajuceFotky().length, 'fotka', 'fotky', 'fotiek') + ' – odídu s ním.' : '') : 'Kľúč nájdete v appke v Nastaveniach. Stačí ho zadať raz.') + '</div>';
   x += '<button class="btn w" data-act="kluc">' + (S.appKluc ? 'Zmeniť kľúč k appke' : 'Zadať kľúč k appke') + '</button>';
+  if (S.appKluc) {
+    const base = appUrl().replace(/\/api\/export$/, '');
+    const ciel = base + (S.appCestaId ? '/cesta/' + S.appCestaId + '/videa' : '/videa');
+    x += '<div class="sect" style="padding-top:14px">VIDEÁ</div>';
+    x += '<a class="btn w" href="' + ciel + '" target="_blank" rel="noopener" style="display:flex;text-decoration:none">' + ICON.share + 'Nahrať videá do appky (na wifi)</a>';
+    x += '<div class="small">Otvorí appku v prehliadači – prihlásite sa a vyberiete videá z galérie telefónu. Appka ich sama priradí k hotelom podľa času. Ideálne na dobrej wifi, každé video má desiatky MB.' + (S.appCestaId ? '' : ' Najprv raz odošlite zápis, aby appka cestu poznala.') + '</div>';
+  }
   x += '<div class="sect" style="padding-top:14px">ZÁLOŽNE – SÚBORY</div>';
   x += '<button class="btn w" data-act="export">' + ICON.share + 'Odoslať / uložiť export (s nahrávkami)</button>';
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.16 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.17 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -755,7 +762,7 @@ function act(a, b) {
     case 'create': { const name = (S._search || '').trim(); if (!name) return; const hh = addHotel(name); setActiveHotel(hh.id); S._search = ''; toast('Nový hotel založený: ' + hh.name); go('hotel'); break; }
     case 'addhotel': { const el = document.getElementById('newhotel'); const name = (el.value || '').trim(); if (!name) return; addHotel(name); S._newhotel = ''; render(); document.getElementById('newhotel').focus(); break; }
     case 'newtrip': { const name = (document.getElementById('tname').value || '').trim(); if (!name) { toast('Zadajte názov cesty'); return; } const dates = document.getElementById('tdates').value.trim(); S.author = document.getElementById('tauthor').value.trim(); const tt = { id: uid(), name, dates, hotels: [], created: nowIso() }; S.trips.push(tt); S.activeTripId = tt.id; S.activeHotelId = null; save(); go('trip'); break; }
-    case 'closetrip': if (confirm('Uzavrieť cestu „' + t.name + '“? Dáta ostanú uložené, budete môcť založiť novú cestu.')) { const prev = active(); if (prev && prev.activations.length) { const l = prev.activations[prev.activations.length - 1]; if (!l.end) l.end = nowIso(); } S.activeTripId = null; S.activeHotelId = null; save(); go('trip'); } break;
+    case 'closetrip': if (confirm('Uzavrieť cestu „' + t.name + '“? Dáta ostanú uložené, budete môcť založiť novú cestu.')) { const prev = active(); if (prev && prev.activations.length) { const l = prev.activations[prev.activations.length - 1]; if (!l.end) l.end = nowIso(); } S.activeTripId = null; S.activeHotelId = null; S.appCestaId = null; save(); go('trip'); } break;
     case 'export': exportTrip(true); break;
     case 'exportlite': exportTrip(false); break;
     case 'kluc': {
