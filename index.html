@@ -700,7 +700,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.17 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.18 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -784,6 +784,17 @@ function editHotel(id) {
 }
 
 // ---------- Štart ----------
+// kľúč a adresa appky sa dajú predvyplniť odkazom: ?kluc=...&appka=https://... (ukážka pre záujemcov)
+try {
+  const p = new URLSearchParams(location.search);
+  if (p.get('kluc')) {
+    S.appKluc = p.get('kluc').trim(); S.appCestaId = null;
+    if (p.get('appka')) localStorage.setItem('infocesty.appUrl', p.get('appka').trim());
+    save(); S.screen = 'trip';
+    history.replaceState(null, '', location.pathname);
+    setTimeout(() => toast('Kľúč k appke je nastavený – môžete zapisovať a odosielať'), 400);
+  }
+} catch (e) {}
 if (!trip()) S.screen = 'trip';
 render();
 loadCatalog().then(() => { if (S.screen === 'switch' || S.screen === 'trip') render(); });
