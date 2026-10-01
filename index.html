@@ -285,6 +285,52 @@ async function poslatFotky(potichu) {
 }
 window.addEventListener('online', () => setTimeout(() => poslatFotky(true), 1500));
 
+// ---------- Videá: rovno na server, k tomuto hotelu ----------
+let nahravamVideo = false;
+function videoKluc(s) { return 'v-' + (s.name || 'video') + '-' + s.size + '-' + (s.lastModified || 0); }
+async function nahrajVidea(h, subory) {
+  if (!S.appKluc) { toast('Najprv zadajte kľúč k appke (záložka Cesta)'); return; }
+  if (!navigator.onLine) { toast('Nie ste online – pripojte sa na wifi a skúste znova'); return; }
+  if (nahravamVideo) { toast('Ešte sa nahráva predchádzajúce video'); return; }
+  const t = trip(); if (!t) return;
+  nahravamVideo = true;
+  const base = appUrl().replace(/\/api\/export$/, '');
+  const box = document.getElementById('videoprogres');
+  const stav = (txt, pct) => { if (box) box.innerHTML = '<div class="card" style="gap:6px"><div style="font-size:13px">' + esc(txt) + '</div><div style="height:8px;background:#efece6;border-radius:99px;overflow:hidden"><div style="height:100%;width:' + (pct || 0) + '%;background:#fab70f"></div></div></div>'; };
+  try {
+    stav('Posielam zápis, aby appka hotel poznala…', 0);
+    const r0 = await fetch(base + '/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Kluc': S.appKluc }, body: JSON.stringify(buildExport(t)) });
+    if (!r0.ok) { toast('Zápis sa nepodarilo odoslať – videá počkajú'); if (box) box.innerHTML = ''; return; }
+    if (!h.videa) h.videa = [];
+    let n = 0;
+    for (let i = 0; i < subory.length; i++) {
+      const s = subory[i], kl = videoKluc(s);
+      if (h.videa.some(v => v.kluc === kl)) { n++; continue; }
+      if (s.size > 600 * 1024 * 1024) { toast(s.name + ': video je väčšie ako 600 MB'); continue; }
+      const fd = new FormData();
+      fd.append('subor', s, s.name);
+      fd.append('externe_hotel', h.id);
+      fd.append('externe_id', kl);
+      fd.append('cas', s.lastModified ? new Date(s.lastModified).toISOString() : '');
+      const mb = Math.round(s.size / 1048576);
+      const vysl = await new Promise((resolve) => {
+        const x = new XMLHttpRequest();
+        x.open('POST', base + '/api/video');
+        x.setRequestHeader('X-Kluc', S.appKluc);
+        x.upload.onprogress = (ev) => { if (ev.lengthComputable) stav('Video ' + (i + 1) + ' z ' + subory.length + ' · ' + mb + ' MB', Math.round(ev.loaded * 100 / ev.total)); };
+        x.onload = () => { let v = {}; try { v = JSON.parse(x.responseText); } catch (e) {} resolve({ ok: x.status >= 200 && x.status < 300, status: x.status, v }); };
+        x.onerror = () => resolve({ ok: false, status: 0, v: {} });
+        x.send(fd);
+      });
+      if (vysl.ok) { h.videa.push({ kluc: kl, nazov: s.name, serverId: vysl.v.id || null, kedy: nowIso() }); n++; save(); }
+      else { toast(vysl.v.sprava || (vysl.status ? 'Video sa nepodarilo nahrať (' + vysl.status + ')' : 'Spojenie sa prerušilo – skúste znova na lepšej wifi')); if (vysl.status === 507 || vysl.status === 0) break; }
+    }
+    if (box) box.innerHTML = '';
+    render();
+    if (n) toast(pl(n, 'video je v appke', 'videá sú v appke', 'videí je v appke'));
+  } finally { nahravamVideo = false; }
+}
+
 // ---------- Katalóg hotelov (Cesys) ----------
 let CATALOG = [];  // [kod, nazov, letovisko, krajina, typ]
 const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -546,6 +592,11 @@ function rHotel(t, h) {
   const cakaju = fotky.filter(f => f.stav !== 'odoslane').length;
   x += '<button class="btn y" style="width:100%;margin-top:6px" data-act="addfoto">' + ICON.foto + '<span>Pridať fotky</span></button>';
   x += '<input type="file" id="fotoinput" accept="image/*" multiple style="display:none">';
+  const videa = (h.videa || []);
+  x += '<button class="btn w" style="width:100%;margin-top:6px" data-act="addvideo">' + ICON.share + '<span>Nahrať videá' + (videa.length ? ' (' + pl(videa.length, 'nahrané', 'nahrané', 'nahraných') + ')' : '') + '</span></button>';
+  x += '<input type="file" id="videoinput" accept="video/*,.mov,.mp4,.m4v" multiple style="display:none">';
+  x += '<div class="muted" style="padding:2px 2px 0">Videá idú rovno do appky k tomuto hotelu – potrebujú internet, najlepšie wifi. Ostávajú aj v galérii telefónu.</div>';
+  x += '<div id="videoprogres"></div>';
   x += '<div class="muted" style="padding:2px 2px 0">Z galérie telefónu alebo odfotiť teraz. Vyberáte vy – súkromné fotky sa nedotknú ničoho. Dá sa to spraviť aj neskôr v buse.</div>';
   if (fotky.length) {
     x += '<div class="sect-row"><div class="sect">FOTKY K TOMUTO ' + (isPlace(h) ? 'MIESTU' : 'HOTELU') + '</div><div class="muted">' + pl(fotky.length, 'fotka', 'fotky', 'fotiek') + (cakaju ? ' · ' + cakaju + ' čaká' : '') + '</div></div>';
@@ -700,7 +751,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.18 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.19 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -745,6 +796,7 @@ function act(a, b) {
     case 'switch': S._search = ''; go('switch'); break;
     case 'hotel': go('hotel'); break;
     case 'checklist': go('checklist'); break;
+    case 'addvideo': { const el = document.getElementById('videoinput'); if (!el) return; el.onchange = () => { const hh = active(); if (hh && el.files && el.files.length) nahrajVidea(hh, Array.prototype.slice.call(el.files)); el.value = ''; }; el.click(); break; }
     case 'addfoto': { const el = document.getElementById('fotoinput'); if (!el) return; el.onchange = () => { const hh = active(); if (hh && el.files && el.files.length) pridajFotky(hh, Array.prototype.slice.call(el.files)); el.value = ''; }; el.click(); break; }
     case 'endvisit': {
       if (!endVisit(h)) { toast('Návšteva už je ukončená'); render(); break; }
