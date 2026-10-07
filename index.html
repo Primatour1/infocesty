@@ -187,8 +187,8 @@ const ZHRN_TEXT = [
 ];
 const ALLQ = [...EXTRA, ...QUESTIONS, ...VYLET];
 function zhrn(t) { if (!t.summary) t.summary = {}; return t.summary; }
-function zhrnCount(t) { const z = zhrn(t); let n = 0; for (const q of ZHRN) if (z[q.key] && (!q.multi || z[q.key].length)) n++; for (const [k] of ZHRN_TEXT) if ((z[k] || '').trim()) n++; if (z.z_hviezdy) n++; return n; }
-const ZHRN_SPOLU = ZHRN.length + ZHRN_TEXT.length + 1;
+function zhrnCount(t) { const z = zhrn(t); let n = (z.hlas || []).length ? 1 : 0; for (const q of ZHRN) if (z[q.key] && (!q.multi || z[q.key].length)) n++; for (const [k] of ZHRN_TEXT) if ((z[k] || '').trim()) n++; if (z.z_hviezdy) n++; return n; }
+const ZHRN_SPOLU = ZHRN.length + ZHRN_TEXT.length + 2;
 const Q_TOPIC = { vylet_prekoho:'bod', vylet_narocnost:'bod', vylet_odporucame:'bod', dojem:'areál', izba_vzhlad:'izby', izba_vybavenie:'izby', izba_typy:'izby', plaz:'pláž', plazchar:'pláž', vzd:'pláž', vstup:'pláž', bar:'pláž', rest:'pláž', lezadla:'pláž', anim:'areál', poloha:'okolie', nakupy:'okolie', okolie:'okolie', letisko:'okolie', bezlepok:'jedlo', alacarte:'jedlo', pristelka:'izby', prekoho:'upozornenie', neodporucit:'upozornenie', predaj:'upozornenie' };
 function qNotes(h, key) { return (h.notes || []).filter(n => n.q === key); }
 // odkiaľ údaj je: „videné“ je predvolené a neukladá sa
@@ -317,6 +317,45 @@ async function poslatFotky(potichu) {
   } finally { posielamFotky = false; }
 }
 window.addEventListener('online', () => setTimeout(() => poslatFotky(true), 1500));
+
+// ---------- Hlasové poznámky: do appky po odoslaní zápisu ----------
+let posielamHlas = false;
+function cakajuceNahravky() {
+  const t = trip(); if (!t) return [];
+  const out = [];
+  for (const h of t.hotels) for (const n of h.notes) if (n.audioId && n.hlasStav !== 'odoslane') out.push({ h, n, id: n.audioId });
+  for (const n of ((t.summary || {}).hlas || [])) if (n.stav !== 'odoslane') out.push({ h: null, n, id: n.id });
+  return out;
+}
+async function poslatHlas(potichu) {
+  const t = trip(); if (!t || !S.appKluc || !navigator.onLine || posielamHlas) return;
+  const cak = cakajuceNahravky(); if (!cak.length) return;
+  if (!S.appCestaId && cak.some(x => !x.h)) { if (!potichu) toast('Najprv odošlite zápis, potom nahrávky zhrnutia'); }
+  posielamHlas = true;
+  try {
+    const base = appUrl().replace(/\/api\/export$/, '');
+    let n = 0;
+    for (const x of cak) {
+      const blob = await audioGet(x.id); if (!blob) continue;
+      if (!x.h && !S.appCestaId) continue;
+      const pr = (blob.type || '').includes('mp4') ? 'm4a' : (blob.type || '').includes('ogg') ? 'ogg' : 'webm';
+      const fd = new FormData();
+      fd.append('subor', blob, 'nahravka.' + pr);
+      fd.append('externe_id', x.id);
+      if (x.h) fd.append('externe_hotel', x.h.id); else fd.append('cesta', S.appCestaId);
+      fd.append('cas', x.n.ts || ''); fd.append('trvanie', String(x.n.secs || 0));
+      if (x.h && x.n.text) fd.append('popis', x.n.text.slice(0, 200));
+      if (!potichu) toast('Posielam nahrávku ' + (n + 1) + ' z ' + cak.length + '…');
+      try {
+        const r = await fetch(base + '/api/hlas', { method: 'POST', headers: { 'X-Kluc': S.appKluc }, body: fd });
+        if (r.ok) { if (x.h) x.n.hlasStav = 'odoslane'; else x.n.stav = 'odoslane'; n++; save(); }
+        else if (r.status === 409) { break; }
+      } catch (e) { break; }
+    }
+    save(); render();
+    if (n && !potichu) toast(pl(n, 'nahrávka odoslaná', 'nahrávky odoslané', 'nahrávok odoslaných') + ' – prepíšu sa v appke');
+  } finally { posielamHlas = false; }
+}
 
 // ---------- Videá: rovno na server, k tomuto hotelu ----------
 let nahravamVideo = false;
@@ -480,8 +519,13 @@ async function toggleRecord(topic) {
       if (blob.size < 1000) { toast('Nahrávka je prázdna'); render(); return; }
       const id = uid();
       try { await audioPut(id, blob); } catch (e) { toast('Audio sa nepodarilo uložiť'); render(); return; }
-      addNote('Hlasová poznámka ' + Math.floor(secs/60) + ':' + String(secs%60).padStart(2,'0') + ' – prepíše sa po návrate', topic || 'hlas', id);
-      toast('Nahrávka uložená k hotelu ' + active().name);
+      if (topic === '__zaver') {
+        const z = zhrn(trip()); z.hlas = z.hlas || []; z.hlas.push({ id, ts: nowIso(), secs, mime: blob.type, stav: 'caka' }); save();
+        toast('Nahrávka uložená k zhrnutiu destinácie');
+      } else {
+        addNote('Hlasová poznámka ' + Math.floor(secs/60) + ':' + String(secs%60).padStart(2,'0') + ' – prepíše sa v appke', topic || 'hlas', id);
+        toast('Nahrávka uložená k hotelu ' + active().name);
+      }
       render();
     };
     rec.start(1000);
@@ -513,7 +557,7 @@ async function poslatDoAppky() {
       body: JSON.stringify(data)
     });
     const v = await r.json().catch(() => ({ sprava: 'Server odpovedal nezrozumiteľne.' }));
-    if (r.ok) { S.appPoslane = nowIso(); if (v.cesta_id) S.appCestaId = v.cesta_id; save(); render(); toast(v.sprava || 'Odoslané'); if (cakajuceFotky().length) poslatFotky(false); }
+    if (r.ok) { S.appPoslane = nowIso(); if (v.cesta_id) S.appCestaId = v.cesta_id; save(); render(); toast(v.sprava || 'Odoslané'); if (cakajuceFotky().length) await poslatFotky(false); if (cakajuceNahravky().length) poslatHlas(false); }
     else { toast(v.sprava || ('Nepodarilo sa odoslať (' + r.status + ')')); }
   } catch (err) {
     toast('Odoslanie zlyhalo – skúste to znova, alebo použite export do súboru');
@@ -774,7 +818,7 @@ function rTrip(t, h) {
   x += '<div class="small" style="padding:2px 0 10px">Vyplňte raz, keď ste prešli všetky hotely – ideálne cestou domov. Z tohto vzniká článok o destinácii.</div>';
   x += '<div class="sect" style="padding-top:8px">EXPORT A NASTAVENIA</div>';
   x += '<button class="btn y" data-act="poslat">' + ICON.share + (S.appKluc ? 'Odoslať do appky' : 'Odoslať do appky (najprv kľúč)') + '</button>';
-  x += '<div class="small" style="text-align:center;padding:2px 0 10px">' + (S.appKluc ? 'Zápis poletí rovno do appky, netreba posielať súbory.' + (cakajuceFotky().length ? ' Čaká ' + pl(cakajuceFotky().length, 'fotka', 'fotky', 'fotiek') + ' – odídu s ním.' : '') : 'Kľúč nájdete v appke v Nastaveniach. Stačí ho zadať raz.') + '</div>';
+  x += '<div class="small" style="text-align:center;padding:2px 0 10px">' + (S.appKluc ? 'Zápis poletí rovno do appky, netreba posielať súbory.' + (cakajuceFotky().length ? ' Čaká ' + pl(cakajuceFotky().length, 'fotka', 'fotky', 'fotiek') + ' – odídu s ním.' : '') + (cakajuceNahravky().length ? ' Čaká ' + pl(cakajuceNahravky().length, 'nahrávka', 'nahrávky', 'nahrávok') + ' – odídu s ním a v appke sa prepíšu.' : '') : 'Kľúč nájdete v appke v Nastaveniach. Stačí ho zadať raz.') + '</div>';
   x += '<button class="btn w" data-act="kluc">' + (S.appKluc ? 'Zmeniť kľúč k appke' : 'Zadať kľúč k appke') + '</button>';
   if (S.appKluc) {
     const base = appUrl().replace(/\/api\/export$/, '');
@@ -796,6 +840,10 @@ function rZaver(t, h) {
   const z = zhrn(t); const hotely = t.hotels.filter(x => !isPlace(x));
   let x = '<div class="screen"><div class="sect-row"><div class="sect">ZÁVER CESTY · ' + zhrnCount(t) + ' z ' + ZHRN_SPOLU + '</div><button data-act="trip" style="background:transparent;border:none;font-size:12px;font-weight:700;color:#696f6f">Späť</button></div>';
   x += '<div class="small" style="padding:0 2px 8px">Zhrnutie celej destinácie – to, čo sa nedá povedať pri jednom hoteli. Ukladá sa priebežne.</div>';
+  x += '<div class="card"><div style="font-size:14px;font-weight:700">Nahrajte, čo vám napadne</div><div class="small" style="padding:4px 0 8px">Najcennejšia časť: porozprávajte o destinácii ako kolegovi – čo ste videli, čo vás prekvapilo, čo poviete klientom. Pokojne 10 minút, aj viackrát. V appke sa prepíše do textu.</div>';
+  x += '<button class="btn ' + (rec ? 'rec' : 'y') + '" data-act="rec" data-topic="__zaver">' + ICON.mic + '<span>' + (rec ? recLabel() : 'Nahrať hovor k destinácii') + '</span></button>';
+  for (const n of (z.hlas || [])) x += '<div class="note"><div class="dot" style="background:#fab70f"></div><div class="txt"><div class="t">Nahrávka ' + Math.floor(n.secs/60) + ':' + String(n.secs%60).padStart(2,'0') + '</div><div class="m">' + dmy(n.ts) + ' ' + hhmm(n.ts) + (n.stav === 'odoslane' ? ' · odoslané do appky' : ' · čaká na odoslanie') + '</div><div id="auz-' + n.id + '"></div></div><button class="icon-btn" data-playz="' + n.id + '" title="Prehrať">' + ICON.play + '</button><button class="icon-btn" data-delz="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
+  x += '</div>';
   const r = z.z_hviezdy || 0;
   x += '<div class="card"><div style="font-size:14px;font-weight:700">Celkový dojem z destinácie</div><div class="stars">' + [1,2,3,4,5].map(n => '<button class="' + (n <= r ? 'on' : '') + '" data-zstar="' + n + '">' + ICON.star(n <= r) + '</button>').join('') + '</div></div>';
   for (const q of ZHRN) {
@@ -820,6 +868,8 @@ function bind(app) {
   app.querySelectorAll('[data-zq]').forEach(b => b.onclick = () => { const t = trip(); const z = zhrn(t); const q = ZHRN.find(x => x.key === b.dataset.zq); const o = b.dataset.o;
     if (q.multi) { const cur = Array.isArray(z[q.key]) ? z[q.key] : []; z[q.key] = cur.includes(o) ? cur.filter(x => x !== o) : [...cur, o]; if (!z[q.key].length) delete z[q.key]; } else { if (z[q.key] === o) delete z[q.key]; else z[q.key] = o; }
     save(); render(); });
+  app.querySelectorAll('[data-playz]').forEach(b => b.onclick = async () => { const blob = await audioGet(b.dataset.playz); if (!blob) { toast('Nahrávka sa nenašla'); return; } const host = document.getElementById('auz-' + b.dataset.playz); host.innerHTML = '<audio class="audio" controls autoplay src="' + URL.createObjectURL(blob) + '"></audio>'; });
+  app.querySelectorAll('[data-delz]').forEach(b => b.onclick = async () => { if (!confirm('Zmazať túto nahrávku?')) return; const z = zhrn(trip()); await audioDel(b.dataset.delz); z.hlas = (z.hlas || []).filter(n => n.id !== b.dataset.delz); save(); render(); });
   app.querySelectorAll('[data-zstar]').forEach(b => b.onclick = () => { const z = zhrn(trip()); const n = Number(b.dataset.zstar); z.z_hviezdy = z.z_hviezdy === n ? 0 : n; save(); render(); });
   app.querySelectorAll('[data-znaj]').forEach(sel => sel.onchange = () => { const z = zhrn(trip()); z.najlepsi = z.najlepsi || {}; if (sel.value) z.najlepsi[sel.dataset.znaj] = sel.value; else delete z.najlepsi[sel.dataset.znaj]; save(); });
   app.querySelectorAll('[data-zt]').forEach(ta => ta.oninput = () => { const z = zhrn(trip()); z[ta.dataset.zt] = ta.value; save(); });
