@@ -136,11 +136,15 @@
 // ---------- Konfigurácia checklistu ----------
 const QUESTIONS = [
   // Poradie = ako sa hotelom prechádza: príchod a okolie → izby → areál → jedlo → pláž na koniec.
-  { key:'poloha', sekcia:'Príchod a okolie', label:'Poloha hotela', options:['v centre mesta','v letovisku','na okraji letoviska','na samote','v rezorte s inými hotelmi'] },
+  { key:'dojem', sekcia:'Príchod a okolie', label:'Prvý dojem', options:['výborný – aj pre náročného klienta','dobrý – bez výhrad','priemerný – nič zlé, nič výnimočné','slabý – treba vysvetliť, čo klienta čaká'] },
+  { key:'poloha', label:'Poloha hotela', options:['v centre mesta','v letovisku','na okraji letoviska','na samote','v rezorte s inými hotelmi'] },
   { key:'letisko', label:'Vzdialenosť od letiska', options:['do 30 min','30–60 min','60–90 min','viac ako 90 min'] },
   { key:'nakupy', label:'Nákupy v okolí', multi:true, options:['supermarket pri hoteli','obchody do 10 min pešo','len minimarket v hoteli','treba auto / bus','nič'] },
   { key:'okolie', label:'Čo robiť v okolí', multi:true, options:['centrum pešo','obchody','promenáda','výlety','nič, len hotel'] },
-  { key:'pristelka', sekcia:'Izby', label:'Prístelka', options:['riadna posteľ','rozkladacie kreslo','pohovka','spýtať manažéra'] },
+  { key:'izba_vzhlad', sekcia:'Izby', label:'Vzhľad izieb', options:['nové / po rekonštrukcii','zachovalé','staršie, ale čisté','opotrebované'] },
+  { key:'izba_vybavenie', label:'Vybavenie izby', multi:true, options:['klimatizácia','balkón / terasa','chladnička / minibar','kanvica','trezor zadarmo','trezor za poplatok','wifi v izbe','vaňa','sprcha'] },
+  { key:'izba_typy', label:'Typy izieb a obsadenosť', multi:true, options:['1 osoba','2 osoby','2 + 1','2 + 2','rodinná s oddelenými miestnosťami','3 dospelí','4 a viac / suita','bungalov / vila'] },
+  { key:'pristelka', label:'Prístelka', options:['riadna posteľ','rozkladacie kreslo','pohovka','spýtať manažéra'] },
   { key:'anim', sekcia:'Areál a program', label:'Animácie', options:['deti','dospelí','oboje','nie'] },
   { key:'bezlepok', sekcia:'Jedlo', label:'Bezlepková strava', options:['na požiadanie','označené v bufete','nie','spýtať manažéra'] },
   { key:'alacarte', label:'À la carte', options:['1× v cene','viackrát v cene','za poplatok','nie je'] },
@@ -158,7 +162,7 @@ const EXTRA = [
   { key:'predaj', label:'Ako predávať', options:['bez váhania','len s vysvetlením, čo klienta čaká','len za výhodnú cenu','nepredávať'] },
 ];
 const ALLQ = [...EXTRA, ...QUESTIONS];
-const Q_TOPIC = { plaz:'pláž', plazchar:'pláž', vzd:'pláž', vstup:'pláž', bar:'pláž', rest:'pláž', lezadla:'pláž', anim:'areál', poloha:'okolie', nakupy:'okolie', okolie:'okolie', letisko:'okolie', bezlepok:'jedlo', alacarte:'jedlo', pristelka:'izby', prekoho:'upozornenie', neodporucit:'upozornenie', predaj:'upozornenie' };
+const Q_TOPIC = { dojem:'areál', izba_vzhlad:'izby', izba_vybavenie:'izby', izba_typy:'izby', plaz:'pláž', plazchar:'pláž', vzd:'pláž', vstup:'pláž', bar:'pláž', rest:'pláž', lezadla:'pláž', anim:'areál', poloha:'okolie', nakupy:'okolie', okolie:'okolie', letisko:'okolie', bezlepok:'jedlo', alacarte:'jedlo', pristelka:'izby', prekoho:'upozornenie', neodporucit:'upozornenie', predaj:'upozornenie' };
 function qNotes(h, key) { return (h.notes || []).filter(n => n.q === key); }
 // odkiaľ údaj je: „videné“ je predvolené a neukladá sa
 const SRC = ['videné', 'od manažéra', 'z katalógu'];
@@ -170,8 +174,8 @@ function cycleSrc(h, key) {
   save();
 }
 const GUIDE = [
-  { key:'dojem', title:'Príchod a prvý dojem', hint:'Lobby, recepcia, atmosféra. A čo ste videli po ceste – kde hotel stojí, čo je naokolo.', rating:'r_dojem', ratingLabel:'Prvý dojem hotela', questions:['poloha','letisko','nakupy','okolie'], topic:'areál', ph:'napr. „upravený areál, veľa zelene“' },
-  { key:'izby', title:'Izby', hint:'Stav, veľkosť, kúpeľňa, hluk, výhľad. Odfoťte aj 0,5× záber.', rating:'r_izby', ratingLabel:'Izby celkovo', questions:['pristelka'], topic:'izby', ph:'napr. „izby staré, ale čisté“' },
+  { key:'dojem', title:'Príchod a prvý dojem', hint:'Lobby, recepcia, atmosféra. A čo ste videli po ceste – kde hotel stojí, čo je naokolo.', rating:'r_dojem', ratingLabel:'Prvý dojem hotela', questions:['dojem','poloha','letisko','nakupy','okolie'], topic:'areál', ph:'napr. „upravený areál, veľa zelene“' },
+  { key:'izby', title:'Izby', hint:'Vzhľad, vybavenie, typy izieb. Veľkosť v m² a výhľad napíšte do poznámky – aj rovnaký typ izby býva rôzne veľký. Odfoťte aj 0,5× záber.', rating:'r_izby', ratingLabel:'Izby celkovo', questions:['izba_vzhlad','izba_vybavenie','izba_typy','pristelka'], topic:'izby', ph:'napr. „štandard 24 m², rodinná 38 m², výhľad bočne na more“' },
   { key:'areal', title:'Areál a program', hint:'Bazény, animácie, detský kútik, večerný program.', rating:null, questions:['anim'], topic:'areál', ph:'napr. „dva bazény, jeden len pre dospelých“' },
   { key:'jedlo', title:'Jedlo', hint:'Bufet, à la carte, špeciálne stravovanie.', rating:'r_jedlo', ratingLabel:'Stravovanie', questions:['alacarte','bezlepok'], topic:'jedlo', ph:'napr. „bufet široký, dezerty slabšie“' },
   { key:'plaz', title:'Pláž', hint:'To, na čo sa klienti pýtajú najviac. Nechajte si ju na koniec.', rating:'r_plaz', ratingLabel:'Pláž celkovo', questions:['vzd','plaz','plazchar','vstup','lezadla','bar','rest'], topic:'pláž', ph:'napr. „pláž široká, ležadlá ďaleko od mora“' },
@@ -751,7 +755,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.19 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.20 · Primatour</div>';
   return x + '</div>';
 }
 
