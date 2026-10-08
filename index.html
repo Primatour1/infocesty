@@ -170,25 +170,39 @@ const VYLET = [
 const VYLET_NAPOVEDA = 'Do bodov napíšte: odkiaľ sa chodí a ako dlho trvá, cena na osobu a kde sa kupuje, čo ste videli, jedlo počas výletu, čo si vziať.';
 // zhrnutie destinácie – raz za cestu (Záver cesty)
 const ZHRN = [
-  { key:'z_dojem', label:'Celkový dojem z destinácie', options:['výborný – aj pre náročného klienta','dobrý – bez výhrad','priemerný – nič zlé, nič výnimočné','slabý – treba vysvetliť, čo klienta čaká'] },
-  { key:'z_prekoho', label:'Pre koho je destinácia', multi:true, options:['rodiny s malými deťmi','rodiny so staršími deťmi','páry','seniori','mladí / partia','náročnejší klient','kto chce pokoj','kto chce program a animácie','kto chce mesto pešo','kto chce len rezort a pláž'] },
-  { key:'z_neodporucit', label:'Komu destináciu neodporúčame', multi:true, options:['kto hľadá luxus','kto je náročný na jedlo','s malými deťmi','kto chce pokoj a ticho','kto chce mesto a obchody pešo','kto chce živý program','kto má diétu (bezlepok a pod.)','komu robia problém schody a chôdza','nikomu – nemáme výhradu'] },
-  { key:'z_odporucame', label:'Odporúčame destináciu', options:['bez váhania','len s vysvetlením, čo klienta čaká','nie'] },
+  { key:"z_dojem", label:"Celkový dojem z destinácie", options:["výborný – aj pre náročného klienta", "dobrý – bez výhrad", "priemerný – nič zlé, nič výnimočné", "slabý – treba vysvetliť, čo klienta čaká"] },
+  { key:"z_typ", label:"Na aký typ dovolenky sa hodí", multi:true, options:["ležanie pri mori", "more + výlety", "poznávanie", "aktívna (turistika, šport)", "zábava a nočný život", "pokojný oddych", "nákupy"] },
+  { key:"z_charakter", label:"Charakter destinácie", options:["čisto hotelové rezorty, okolo nič", "letoviská s mestečkom", "živé mesto", "príroda a vidiek"] },
+  { key:"z_plaze_typ", label:"Pláže celkovo", multi:true, options:["piesok", "kamienky", "skaly, móla", "dlhé široké pláže", "malé zátoky", "plytký vstup pre deti", "väčšinou organizované s ležadlami", "väčšinou verejné bez servisu"] },
+  { key:"z_more", label:"More a vietor", options:["teplé a pokojné", "často vlny a vietor", "chladnejšie"] },
+  { key:"z_klima", label:"Klíma v sezóne", options:["príjemne", "v lete veľmi horúco (júl–august nie pre seniorov)", "nestále počasie mimo hlavnej sezóny"] },
+  { key:"z_kedy", label:"Kedy odporúčame ísť", multi:true, options:["máj–jún", "júl–august", "september–október", "zima"] },
+  { key:"z_transfer", label:"Transfer z letiska typicky", options:["do 30 min", "do 1 h", "1–2 h", "viac ako 2 h"] },
+  { key:"z_ceny", label:"Ceny mimo hotela (jedlo v meste, taxi, výlety)", options:["lacno", "primerane", "draho"] },
+  { key:"z_jazyk", label:"Dorozumievanie", options:["angličtina bez problémov", "len základy angličtiny", "skôr nemčina", "skôr ruština"] },
+  { key:"z_bezpecie", label:"Pocit bezpečia", options:["bezpečné aj večer", "štandard, bežná opatrnosť", "radšej nechodiť sám"] },
+  { key:"z_specifika", label:"Kultúrne špecifiká", multi:true, options:["moslimská krajina (alkohol, obliekanie)", "dotieraví predajcovia", "sviatky a piatky zatvorené", "nič zvláštne"] },
+  { key:"z_pohyb", label:"Pohyb po destinácii", multi:true, options:["auto má zmysel", "taxi lacné a bežné", "funguje MHD / autobusy", "všetko pešo z hotela"] },
+  { key:"z_hviezdicky", label:"Hotely oproti katalógovým hviezdičkám", options:["sedia", "hotely sú o stupeň slabšie", "lepšie než hviezdičky"] },
+  { key:"z_prekoho", label:"Pre koho destinácia áno", multi:true, options:["rodiny s deťmi (zábava aj mimo hotela)", "seniori", "páry", "mladí / partia", "klienti bez auta", "imobilní klienti", "prvá dovolenka v zahraničí", "náročný klient zvyknutý na západ"] },
+  { key:"z_neodporucit", label:"Komu destináciu nie", multi:true, options:["seniorom v letnej horúčave", "komu robia problém kopce a schody", "kto chce pokoj a ticho", "kto chce mesto a obchody pešo", "kto chce živý program", "kto je náročný na jedlo", "kto hľadá luxus", "nikomu – nemáme výhradu"] },
+  { key:"z_odporucame", label:"Odporúčame destináciu", options:["bez váhania", "len s vysvetlením, čo klienta čaká", "nie"] },
 ];
 const ZHRN_NAJ = [['n_deti','rodiny s malými deťmi'],['n_pary','páry'],['n_seniori','seniorov'],['n_bezlepok','bezlepkovú diétu'],['n_plaz','najkrajšia pláž'],['n_mesto','mesto pešo'],['n_cena','pomer cena / kvalita'],['n_sklamanie','najväčšie sklamanie']];
 const ZHRN_TEXT = [
-  ['z_sezona','Sezóna a počasie','Kedy sme boli, aké bolo počasie a more. Kedy odporučiť ísť a kedy nie.'],
-  ['z_plaze','Pláže v destinácii celkovo','Riasy, odliv, kamienky, šírka, ležadlá – čo platí pre celú oblasť.'],
-  ['z_jedlo','Jedlo a špecifiká','Čo je typické, na čo si zvyknúť, alkohol, káva, voda.'],
-  ['z_prakticke','Praktické rady pred cestou','Peniaze a karty · zmena peňazí · prepitné · depozit za uteráky a trezor · doprava a taxi · bezpečnosť · wifi a SIM · jazyk · lieky.'],
-  ['z_vylety_ponuka','Výlety v ponuke, ktoré sme nerobili (podľa delegáta)','Zoznam s poznámkou, čo vám o nich povedali. V článku pôjdu oddelene ako neoverené.'],
-  ['z_plus','Čo nás prekvapilo pozitívne',''],
-  ['z_minus','Čo nás prekvapilo negatívne',''],
+  ["z_veta","Ako destináciu opísať klientovi jednou vetou","S čím ju porovnať, napr. „lacnejšia alternatíva Egypta, ale hotely o stupeň slabšie“."],
+  ["z_sezona","Sezóna a počasie – poznámka","Kedy sme boli, aké bolo počasie a more."],
+  ["z_plaze","Pláže – poznámka","Riasy, odliv, medúzy, čo platí pre celú oblasť."],
+  ["z_jedlo","Jedlo a špecifiká","Čo je typické, na čo si zvyknúť, alkohol, káva, voda."],
+  ["z_prakticke","Praktické rady pred cestou","Peniaze a karty · zmena peňazí · prepitné · depozit za uteráky a trezor · doprava a taxi · wifi a SIM · lieky."],
+  ["z_vylety_ponuka","Výlety v ponuke, ktoré sme nerobili (podľa delegáta)","Zoznam s poznámkou, čo vám o nich povedali. V článku pôjdu oddelene ako „neoverené, od delegáta“."],
+  ["z_plus","Čo nás prekvapilo pozitívne",""],
+  ["z_minus","Čo nás prekvapilo negatívne",""],
 ];
 const ALLQ = [...EXTRA, ...QUESTIONS, ...VYLET];
 function zhrn(t) { if (!t.summary) t.summary = {}; return t.summary; }
-function zhrnCount(t) { const z = zhrn(t); let n = (z.hlas || []).length ? 1 : 0; for (const q of ZHRN) if (z[q.key] && (!q.multi || z[q.key].length)) n++; for (const [k] of ZHRN_TEXT) if ((z[k] || '').trim()) n++; if (z.z_hviezdy) n++; return n; }
-const ZHRN_SPOLU = ZHRN.length + ZHRN_TEXT.length + 2;
+function zhrnCount(t) { const z = zhrn(t); let n = ((z.hlas || []).length ? 1 : 0) + ((z.body || []).length ? 1 : 0); for (const q of ZHRN) if (z[q.key] && (!q.multi || z[q.key].length)) n++; for (const [k] of ZHRN_TEXT) if ((z[k] || '').trim()) n++; if (z.z_hviezdy) n++; return n; }
+const ZHRN_SPOLU = ZHRN.length + ZHRN_TEXT.length + 3;
 const Q_TOPIC = { vylet_prekoho:'bod', vylet_narocnost:'bod', vylet_odporucame:'bod', dojem:'areál', izba_vzhlad:'izby', izba_vybavenie:'izby', izba_typy:'izby', plaz:'pláž', plazchar:'pláž', vzd:'pláž', vstup:'pláž', bar:'pláž', rest:'pláž', lezadla:'pláž', anim:'areál', poloha:'okolie', nakupy:'okolie', okolie:'okolie', letisko:'okolie', bezlepok:'jedlo', alacarte:'jedlo', pristelka:'izby', prekoho:'upozornenie', neodporucit:'upozornenie', predaj:'upozornenie' };
 function qNotes(h, key) { return (h.notes || []).filter(n => n.q === key); }
 // odkiaľ údaj je: „videné“ je predvolené a neukladá sa
@@ -832,7 +846,7 @@ function rTrip(t, h) {
   x += '<button class="btn w" data-act="exportlite">Export len text a odpovede (malý súbor)</button>';
   x += '<div class="small">Export vytvorí dva súbory: čitateľný text (.txt) a dáta (.json) pre spracovanie v kancelárii. Na telefóne sa otvorí okno „Zdieľať“ – pošlite ich e-mailom, cez WhatsApp alebo do Google Drive. Exportovať môžete koľkokrát chcete, nič sa nezmaže. Fotky idú len priamou cestou do appky (s kľúčom), do súboru sa nebalia.</div>';
   x += '<div class="row" style="padding-top:6px"><button class="btn w grow" data-act="closetrip">Uzavrieť cestu (nová cesta)</button></div>';
-  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.22 · Primatour</div>';
+  x += '<div class="small" style="text-align:center;padding-top:10px">Infocesty · terénny zápisník v0.23 · Primatour</div>';
   return x + '</div>';
 }
 
@@ -843,6 +857,10 @@ function rZaver(t, h) {
   x += '<div class="card"><div style="font-size:14px;font-weight:700">Nahrajte, čo vám napadne</div><div class="small" style="padding:4px 0 8px">Najcennejšia časť: porozprávajte o destinácii ako kolegovi – čo ste videli, čo vás prekvapilo, čo poviete klientom. Pokojne 10 minút, aj viackrát. V appke sa prepíše do textu.</div>';
   x += '<button class="btn ' + (rec ? 'rec' : 'y') + '" data-act="rec" data-topic="__zaver">' + ICON.mic + '<span>' + (rec ? recLabel() : 'Nahrať hovor k destinácii') + '</span></button>';
   for (const n of (z.hlas || [])) x += '<div class="note"><div class="dot" style="background:#fab70f"></div><div class="txt"><div class="t">Nahrávka ' + Math.floor(n.secs/60) + ':' + String(n.secs%60).padStart(2,'0') + '</div><div class="m">' + dmy(n.ts) + ' ' + hhmm(n.ts) + (n.stav === 'odoslane' ? ' · odoslané do appky' : ' · čaká na odoslanie') + '</div><div id="auz-' + n.id + '"></div></div><button class="icon-btn" data-playz="' + n.id + '" title="Prehrať">' + ICON.play + '</button><button class="icon-btn" data-delz="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
+  x += '</div>';
+  x += '<div class="card"><div style="font-size:14px;font-weight:700">Body k destinácii</div><div class="small" style="padding:4px 0 8px">Voľné poznámky ako pri hoteli – čo sa nehodí do žiadnej otázky.</div>';
+  x += '<div class="inputrow"><input id="zdraft" placeholder="+ bod, napr. „taxi z letiska 25 €, platí sa hotovosť“" autocomplete="off" enterkeyhint="done" value="' + esc(S._zdraft || '') + '"><button class="add" data-act="addzbod">Pridať</button></div>';
+  for (const n of (z.body || [])) x += '<div class="note"><div class="dot" style="background:#9a9a96"></div><div class="txt"><div class="t">' + esc(n.text) + '</div><div class="m">' + dmy(n.ts) + ' ' + hhmm(n.ts) + '</div></div><button class="icon-btn" data-delzbod="' + n.id + '" title="Zmazať">' + ICON.x + '</button></div>';
   x += '</div>';
   const r = z.z_hviezdy || 0;
   x += '<div class="card"><div style="font-size:14px;font-weight:700">Celkový dojem z destinácie</div><div class="stars">' + [1,2,3,4,5].map(n => '<button class="' + (n <= r ? 'on' : '') + '" data-zstar="' + n + '">' + ICON.star(n <= r) + '</button>').join('') + '</div></div>';
@@ -870,6 +888,8 @@ function bind(app) {
     save(); render(); });
   app.querySelectorAll('[data-playz]').forEach(b => b.onclick = async () => { const blob = await audioGet(b.dataset.playz); if (!blob) { toast('Nahrávka sa nenašla'); return; } const host = document.getElementById('auz-' + b.dataset.playz); host.innerHTML = '<audio class="audio" controls autoplay src="' + URL.createObjectURL(blob) + '"></audio>'; });
   app.querySelectorAll('[data-delz]').forEach(b => b.onclick = async () => { if (!confirm('Zmazať túto nahrávku?')) return; const z = zhrn(trip()); await audioDel(b.dataset.delz); z.hlas = (z.hlas || []).filter(n => n.id !== b.dataset.delz); save(); render(); });
+  app.querySelectorAll('[data-delzbod]').forEach(b => b.onclick = () => { if (!confirm('Zmazať tento bod?')) return; const z = zhrn(trip()); z.body = (z.body || []).filter(n => n.id !== b.dataset.delzbod); save(); render(); });
+  const zdraft = app.querySelector('#zdraft'); if (zdraft) { zdraft.oninput = () => { S._zdraft = zdraft.value; }; zdraft.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); act('addzbod'); } }; }
   app.querySelectorAll('[data-zstar]').forEach(b => b.onclick = () => { const z = zhrn(trip()); const n = Number(b.dataset.zstar); z.z_hviezdy = z.z_hviezdy === n ? 0 : n; save(); render(); });
   app.querySelectorAll('[data-znaj]').forEach(sel => sel.onchange = () => { const z = zhrn(trip()); z.najlepsi = z.najlepsi || {}; if (sel.value) z.najlepsi[sel.dataset.znaj] = sel.value; else delete z.najlepsi[sel.dataset.znaj]; save(); });
   app.querySelectorAll('[data-zt]').forEach(ta => ta.oninput = () => { const z = zhrn(trip()); z[ta.dataset.zt] = ta.value; save(); });
@@ -928,6 +948,7 @@ function act(a, b) {
     case 'gback': S.guideStep = Math.max(0, S.guideStep - 1); go('guide'); break;
     case 'gnext': if (S.guideStep >= GUIDE.length - 1) { S.guideStep = 0; toast('Hotel ' + h.name + ' prejdený krok za krokom'); go('hotel'); } else { S.guideStep++; go('guide'); } break;
     case 'rec': toggleRecord(b && b.dataset.topic); break;
+    case 'addzbod': { const el = document.getElementById('zdraft'); const text = (el && el.value || '').trim(); if (!text) return; const z = zhrn(trip()); z.body = z.body || []; z.body.push({ id: uid(), text, ts: nowIso() }); S._zdraft = ''; save(); render(); const el2 = document.getElementById('zdraft'); if (el2) el2.focus(); break; }
     case 'addnote': { const el = document.getElementById('draft'); const text = (el.value || '').trim(); if (!text) return; addNote(text, b && b.dataset.topic); const nn = active().notes[active().notes.length - 1]; if (nn && nn.topic !== 'bod') toast('Zaradené ako „' + nn.topic + '“ – ťuknutím na štítok zmeníte'); render(); const el2 = document.getElementById('draft'); if (el2) el2.focus(); break; }
     case 'create': { const name = (S._search || '').trim(); if (!name) return; const hh = addHotel(name); setActiveHotel(hh.id); S._search = ''; toast('Nový hotel založený: ' + hh.name); go('hotel'); break; }
     case 'addhotel': { const el = document.getElementById('newhotel'); const name = (el.value || '').trim(); if (!name) return; addHotel(name); S._newhotel = ''; render(); document.getElementById('newhotel').focus(); break; }
